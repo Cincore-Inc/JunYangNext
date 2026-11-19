@@ -36,31 +36,20 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
-        id: node
         with:
           node-version: 22
           cache: npm
 
-      - name: Restore installed dependencies
-        id: dependencies
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-${{ runner.arch }}-dependencies-${{ steps.node.outputs.node-version }}-${{ hashFiles('package.json', 'package-lock.json', '.npmrc') }}
-
       - name: Restore build cache
         uses: actions/cache@v4
         with:
-          path: |
-            .next/cache
-            .eslintcache
+          path: .next/cache
           key: ${{ runner.os }}-next-node22-${{ hashFiles('package-lock.json') }}-${{ steps.revision.outputs.sha }}
           restore-keys: |
             ${{ runner.os }}-next-node22-${{ hashFiles('package-lock.json') }}-
 
       - run: npm ci --no-audit --no-fund
-        if: steps.dependencies.outputs.cache-hit != 'true'
-      - run: npm run lint -- --cache --cache-strategy content
+      - run: npm run lint
       - run: npm run build
       - run: npm run test:integration
 
@@ -101,7 +90,8 @@ jobs:
           cd "$DEPLOY_PATH"
           stage_start=$SECONDS
           for attempt in 1 2 3; do
-            git fetch --prune origin && break
+            timeout 45s git -c http.version=HTTP/1.1 -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=20 \
+              fetch --no-tags origin "$DEPLOY_REVISION" && break
             test "$attempt" = 3 && exit 1
             sleep "$((attempt * 3))"
           done
