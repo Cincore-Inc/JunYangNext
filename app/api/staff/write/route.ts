@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id") || "";
   if (!/^[1-9]\d{0,9}$/.test(id)) return NextResponse.json({ error: "人员编号无效" }, { status: 400 });
   try {
-    const salaryDenied = await requirePermission(request, ["salarydetail_view", "salarydetail_change"]);
+    const salaryDenied = await requirePermission(request, ["salarydetail_view"]);
     if (salaryDenied && salaryDenied.status !== 403) return salaryDenied;
     const [rows] = await getMysql().execute<RowDataPacket[]>(`SELECT name, phone, position, DATE_FORMAT(entrydate, '%Y-%m-%d') AS entrydate, staff_status${salaryDenied ? "" : ", salary, percentage"} FROM staff_staff WHERE id = ?`, [id]);
     const row = rows[0];

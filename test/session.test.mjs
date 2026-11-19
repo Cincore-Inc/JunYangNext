@@ -19,7 +19,8 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     }
     if (req.url === "/api/account/mypermission/") {
       const token = req.headers.authorization;
-      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT staff-list-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
+      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT staff-salary-view", "JWT staff-list-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
+      if (token === "JWT staff-salary-view") return res.end(JSON.stringify({ staff_staff: true, salarydetail_view: true }));
       if (token === "JWT certificate-only") return res.end(JSON.stringify({ certificate_view: true, certificate_add: true }));
       if (token === "JWT staff-list-only") return res.end(JSON.stringify({ staff_view: true }));
       if (token === "JWT item-only") return res.end(JSON.stringify({ staff_view: true, staff_item: true }));
@@ -144,9 +145,11 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const detail = await (await fetch(`${base}/api/staff/write?id=1`, { headers: auth })).json();
     assert.equal(detail.name, "Test"); assert.equal(detail.salary, 123); assert.equal("id_card" in detail, false);
     const restrictedDetail = await (await fetch(`${base}/api/staff/write?id=1`, { headers: { cookie: "junyang_session=staff-only" } })).json(); assert.equal("salary" in restrictedDetail, false);
+    const salaryView = await (await fetch(`${base}/api/staff/write?id=1`, { headers: { cookie: "junyang_session=staff-salary-view" } })).json(); assert.equal(salaryView.salary, 123); assert.equal(salaryView.percentage, 5);
     const person = { name: "New Person", phone: "123", position: "资料员", entrydate: "2026-11-01", staff_status: "ON", salary: 5000, percentage: 5 };
     const staffExpected = (id) => ({ name: id === 2 ? "New Person" : "Old Person", phone: "123", position: "资料员", entrydate: "2026-11-01", staff_status: "ON", salary: 5000, percentage: 5 });
     const write = (payload, headers = auth) => fetch(`${base}/api/staff/write`, { method: "POST", headers: { ...headers, origin: base, "content-type": "application/json" }, body: JSON.stringify(payload.id ? { expected: staffExpected(payload.id), ...payload } : payload) });
+    assert.equal((await write({ ...person, id: 1 }, { cookie: "junyang_session=staff-salary-view" })).status, 403);
     assert.equal((await write(person, { cookie: limitedCookie })).status, 403);
     assert.equal((await write({ ...person, salary: -1 })).status, 400);
     assert.equal((await write({ ...person, name: "Duplicate" })).status, 409);
