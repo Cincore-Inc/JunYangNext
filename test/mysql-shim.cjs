@@ -41,6 +41,8 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('SELECT name FROM staff_staff')) return [[{ name: 'Person' }]];
       if (sql.startsWith('UPDATE staff_certificate') && params[8] === 75 && JSON.stringify(params.slice(0,8)) !== JSON.stringify([null,'历史姓名',null,'2026-11-19',null,null,null,null])) throw new Error('certificate historical values were overwritten');
       if (sql.startsWith('UPDATE staff_certificate')) return [{ affectedRows: sql.includes('NOT EXISTS') && deletedPersonnel.has('certificates:1') ? 0 : 1 }];
+      if (sql.startsWith('UPDATE staff_exam SET exam_name=') && params.includes(76) && params[0] !== '修改时间' && (sql.includes('exam_date=?') || sql.includes('cert_date=?') || params[1] !== '旧姓名' || params[4] !== 10)) throw new Error('unchanged exam time or historical person not preserved');
+      if (sql.startsWith('UPDATE staff_exam SET exam_name=') && params.includes(76) && params[0] === '修改时间' && (!sql.includes('exam_date=?') || sql.includes('cert_date=?'))) throw new Error('changed exam date not updated');
       if (sql.startsWith('UPDATE staff_exam')) return [{ affectedRows: sql.includes('NOT EXISTS') && deletedPersonnel.has('exams:1') ? 0 : 1 }];
       if (sql.startsWith('SELECT name, short_name FROM company_companys')) return [[{ name: 'Test company', short_name: 'Test' }]];
       if (sql.startsWith('SELECT id FROM auth_group')) return [Number(params[0]) === 999 ? [] : [{ id: Number(params[0]) }]];
