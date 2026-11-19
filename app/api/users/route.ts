@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
-  if (typeof body.username !== "string" || !/^[\w.@+-]{1,30}$/.test(body.username) || typeof body.password !== "string" || body.password.length < 8 || body.password.length > 30 || !Number.isSafeInteger(body.staffId) || body.staffId < 1 || typeof body.active !== "boolean" || (body.groupId !== null && (!Number.isSafeInteger(body.groupId) || body.groupId < 1))) return NextResponse.json({ error: "账号信息无效，密码需要 8–30 位" }, { status: 400 });
+  if (typeof body.username !== "string" || !/^[\w.@+-]{1,30}$/.test(body.username) || typeof body.password !== "string" || body.password.length < 1 || body.password.length > 128 || !Number.isSafeInteger(body.staffId) || body.staffId < 1 || typeof body.active !== "boolean" || (body.groupId !== null && (!Number.isSafeInteger(body.groupId) || body.groupId < 1))) return NextResponse.json({ error: "账号信息无效，密码需要 1–128 位" }, { status: 400 });
   try {
     const denied = await requireAdministrator(request); if (denied) return denied;
     const connection = await getMysql().getConnection();
@@ -68,7 +68,7 @@ export async function PATCH(request: NextRequest) {
   if (!token) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
-  if (!Number.isSafeInteger(body.id) || body.id < 1 || typeof body.username !== "string" || !/^[\w.@+-]{1,30}$/.test(body.username) || (body.password !== undefined && (typeof body.password !== "string" || body.password.length < 8 || body.password.length > 30)) || typeof body.active !== "boolean" || typeof body.expectedUsername !== "string" || typeof body.expectedActive !== "boolean" || (body.groupId !== undefined && body.groupId !== null && (!Number.isSafeInteger(body.groupId) || body.groupId < 1)) || !Array.isArray(body.expectedGroups) || !body.expectedGroups.every((name: unknown) => typeof name === "string" && name.length <= 150)) return NextResponse.json({ error: "账号信息无效，密码需要 8–30 位" }, { status: 400 });
+  if (!Number.isSafeInteger(body.id) || body.id < 1 || typeof body.username !== "string" || !/^[\w.@+-]{1,30}$/.test(body.username) || (body.password !== undefined && (typeof body.password !== "string" || body.password.length < 1 || body.password.length > 128)) || typeof body.active !== "boolean" || typeof body.expectedUsername !== "string" || typeof body.expectedActive !== "boolean" || (body.groupId !== undefined && body.groupId !== null && (!Number.isSafeInteger(body.groupId) || body.groupId < 1)) || !Array.isArray(body.expectedGroups) || !body.expectedGroups.every((name: unknown) => typeof name === "string" && name.length <= 150)) return NextResponse.json({ error: "账号信息无效，密码需要 1–128 位" }, { status: 400 });
   try {
     const denied = await requireAdministrator(request); if (denied) return denied;
     const connection = await getMysql().getConnection();

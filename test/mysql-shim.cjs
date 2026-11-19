@@ -55,7 +55,7 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('SELECT permission_id FROM auth_group_permissions')) return [[{ permission_id: 2 }, { permission_id: 99 }]];
       if (sql.startsWith('INSERT INTO auth_group (name)')) return [{ insertId: 3 }];
       if (sql.startsWith('INSERT INTO auth_user (')) return [{ insertId: 7 }];
-      if (sql.startsWith('UPDATE auth_user SET password') && params[0] !== 'new-password') throw new Error('unexpected password');
+      if (sql.startsWith('UPDATE auth_user SET password') && !['new-password', 'short'].includes(params[0])) throw new Error('unexpected password');
       return [{}];
     },
   }; } }; } };

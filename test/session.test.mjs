@@ -335,7 +335,10 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const createUser = (payload, headers = auth) => fetch(`${base}/api/users`, { method: "POST", headers: { ...headers, origin: base, "content-type": "application/json" }, body: JSON.stringify(payload) });
     const newUser = { username: "person", password: "test-password", staffId: 10, active: true, groupId: 2 };
     assert.equal((await createUser(newUser, { cookie: limitedCookie })).status, 403);
-    assert.equal((await createUser({ ...newUser, password: "short" })).status, 400);
+    assert.equal((await createUser({ ...newUser, password: "short" })).status, 200);
+    assert.equal((await createUser({ ...newUser, password: "" })).status, 400);
+    assert.equal((await createUser({ ...newUser, password: "x".repeat(129) })).status, 400);
+    assert.equal((await fetch(`${base}/api/users`, { method: "PATCH", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 1, username: "changed", password: "short", active: false, expectedUsername: "before", expectedActive: true, expectedGroups: ["Role"] }) })).status, 200);
     assert.equal((await createUser({ ...newUser, staffId: 11 })).status, 409);
     assert.equal((await createUser(newUser)).status, 200);
     const remove = (kind, headers) => fetch(`${base}/api/account-delete?kind=${kind}&id=${kind === "user" ? 1 : 2}`, { method: "DELETE", headers: { ...headers, origin: base } });
