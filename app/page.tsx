@@ -254,6 +254,7 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
   const [cloning, setCloning] = useState(false);
   const [projects, setProjects] = useState<{ value: string; label: string }[]>([]);
   const [companies, setCompanies] = useState<{ value: string; label: string }[]>([]);
+  const optionRequests = useRef({ projects: 0, companies: 0 });
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<FinanceItem | null>(null);
   const kind = transactions ? "transactions" : initialKind;
@@ -284,8 +285,9 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
     } catch (e) { if (e instanceof Error) message.error(e.message); } finally { setSaving(false); }
   };
   const searchOptions = async (type: "projects" | "companies", q: string) => {
-    try { const result = await readJSON<{ items: { value: string; label: string }[] }>(`/api/finance/options?${new URLSearchParams({ kind: type, q })}`); if (type === "projects") setProjects(result.items); else setCompanies(result.items); }
-    catch (e) { message.error(e instanceof Error ? e.message : "无法读取选项"); }
+    const current = ++optionRequests.current[type];
+    try { const result = await readJSON<{ items: { value: string; label: string }[] }>(`/api/finance/options?${new URLSearchParams({ kind: type, q })}`); if (current === optionRequests.current[type]) { const update = type === "projects" ? setProjects : setCompanies; const selected = form.getFieldValue(type === "projects" ? "projectId" : "companyId"); update(previous => [...new Map([...previous.filter(option => option.value === selected), ...result.items].map(option => [option.value, option])).values()]); } }
+    catch (e) { if (current === optionRequests.current[type]) message.error(e instanceof Error ? e.message : "无法读取选项"); }
   };
   const createFinance = async () => {
     await Promise.all([searchOptions("projects", ""), searchOptions("companies", "")]);
