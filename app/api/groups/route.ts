@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
   const editing = body.id !== undefined;
-  if ((editing && (!Number.isSafeInteger(body.id) || body.id < 1)) || typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 150 || !Array.isArray(body.permissions) || body.permissions.length > 200 || !body.permissions.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0) || (editing && (!Array.isArray(body.expectedPermissions) || !body.expectedPermissions.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0)))) return NextResponse.json({ error: "角色信息无效" }, { status: 400 });
+  if ((editing && (!Number.isSafeInteger(body.id) || body.id < 1 || typeof body.expectedName !== "string" || body.expectedName.length > 150)) || typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 150 || !Array.isArray(body.permissions) || body.permissions.length > 200 || !body.permissions.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0) || (editing && (!Array.isArray(body.expectedPermissions) || !body.expectedPermissions.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0)))) return NextResponse.json({ error: "角色信息无效" }, { status: 400 });
   try {
     if (!(await roleManager(request))) return NextResponse.json({ error: "只有管理角色可以管理角色" }, { status: 403 });
     const catalog = { view_permission: await permissionCatalog() };
@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
       let id = body.id as number;
       let hidden: number[] = [];
       if (editing) {
-        const [groups] = await connection.execute<RowDataPacket[]>("SELECT id FROM auth_group WHERE id = ? FOR UPDATE", [id]);
+        const [groups] = await connection.execute<RowDataPacket[]>("SELECT id, name FROM auth_group WHERE id = ? FOR UPDATE", [id]);
         if (!groups.length) { await connection.rollback(); return NextResponse.json({ error: "角色不存在" }, { status: 404 }); }
+        if (groups[0].name !== body.expectedName) { await connection.rollback(); return NextResponse.json({ error: "角色名称已变化，请刷新后重试" }, { status: 409 }); }
         const [deleted] = await connection.execute<RowDataPacket[]>("SELECT group_id FROM junyang_deleted_roles WHERE group_id = ?", [id]);
         if (deleted.length) { await connection.rollback(); return NextResponse.json({ error: "角色已删除" }, { status: 409 }); }
         const [current] = await connection.execute<RowDataPacket[]>("SELECT permission_id FROM auth_group_permissions WHERE group_id = ? FOR UPDATE", [id]);

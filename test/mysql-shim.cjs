@@ -46,6 +46,7 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('UPDATE staff_exam SET exam_name=') && params.includes(76)) { if (!sql.includes("DATE_FORMAT(exam_date, '%Y-%m-%d %H:%i:%s.%f') <=> ?") || !sql.includes("DATE_FORMAT(cert_date, '%Y-%m-%d %H:%i:%s.%f') <=> ?")) throw new Error('missing precise version checks'); if (params.includes('2026-11-19 10:30:28.000000')) return [{affectedRows:0}]; if (!params.includes('2026-11-19 10:30:27.000000')) throw new Error('missing precise version value'); }
       if (sql.startsWith('UPDATE staff_exam')) return [{ affectedRows: sql.includes('NOT EXISTS') && deletedPersonnel.has('exams:1') ? 0 : 1 }];
       if (sql.startsWith('SELECT name, short_name FROM company_companys')) return [[{ name: 'Test company', short_name: 'Test' }]];
+      if (sql.startsWith('SELECT id, name FROM auth_group WHERE id')) return [Number(params[0]) === 999 ? [] : [{ id: Number(params[0]), name: Number(params[0]) === 3 ? 'Empty role' : 'Role' }]];
       if (sql.startsWith('SELECT id FROM auth_group')) return [Number(params[0]) === 999 ? [] : [{ id: Number(params[0]) }]];
       if (sql.startsWith('SELECT group_id FROM junyang_deleted_roles')) return [deletedRoles.has(Number(params[0])) ? [{group_id:Number(params[0])}] : []];
       if (sql.startsWith('SELECT user_id FROM auth_user_groups WHERE group_id')) return [Number(params[0]) === 2 ? [{user_id:1}] : []];

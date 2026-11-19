@@ -115,7 +115,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const profile = await (await fetch(`${base}/api/session`, { headers: { cookie: `junyang_session=${profileToken}` } })).json(); assert.equal(profile.username, "profile-user"); assert.equal(profile.name, "Profile Person");
     const managerProfile = await (await fetch(`${base}/api/session`, { headers: { cookie: `junyang_session=${managerToken}` } })).json(); assert.equal(managerProfile.administrator, true); assert.equal(managerProfile.canManageRoles, true);
     const managerCatalog = await fetch(`${base}/api/groups?catalog=1`, { headers: { cookie: `junyang_session=${managerToken}` } }); assert.equal(managerCatalog.status, 200);
-    const managerRole = await fetch(`${base}/api/groups`, { method: "POST", headers: { cookie: `junyang_session=${managerToken}`, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 2, name: "Role", permissions: [2], expectedPermissions: [2, 99] }) }); assert.equal(managerRole.status, 200);
+    const managerRole = await fetch(`${base}/api/groups`, { method: "POST", headers: { cookie: `junyang_session=${managerToken}`, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 2, name: "Role", expectedName: "Role", permissions: [2], expectedPermissions: [2, 99] }) }); assert.equal(managerRole.status, 200);
     assert.equal((await fetch(`${base}/api/groups?catalog=1`, { headers: { cookie: limitedCookie } })).status, 403);
     assert.equal((await fetch(`${base}/api/staff?from=2026-02-30&to=2026-03-01`, { headers: auth })).status, 400);
     assert.equal((await fetch(`${base}/api/staff?from=2026-03-01&to=2026-02-01`, { headers: auth })).status, 400);
@@ -300,8 +300,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await remove("user", { cookie: limitedCookie })).status, 403);
     assert.equal((await remove("user", auth)).status, 400);
     assert.equal((await remove("group", auth)).status, 409);
-    const saveGroup = (permissions, expectedPermissions) => fetch(`${base}/api/groups`, { method: "POST", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 2, name: "Role", permissions, expectedPermissions }) });
+    const saveGroup = (permissions, expectedPermissions) => fetch(`${base}/api/groups`, { method: "POST", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 2, name: "Role", expectedName: "Role", permissions, expectedPermissions }) });
     assert.equal((await saveGroup([2], [2, 99])).status, 200);
+    const staleRole = await fetch(`${base}/api/groups`, { method: "POST", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 2, name: "修改角色", expectedName: "旧名称", permissions: [2], expectedPermissions: [2, 99] }) }); assert.equal(staleRole.status, 409);
     assert.equal((await saveGroup([2], [2])).status, 409);
     assert.equal((await saveGroup([99], [2, 99])).status, 400);
     const deleteRole = (id, headers = auth) => fetch(`${base}/api/account-delete?kind=group&id=${id}`, { method: 'DELETE', headers: { ...headers, origin: base } });
@@ -311,7 +312,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await deleteRole(3)).status, 409);
     assert.equal((await (await fetch(`${base}/api/groups`, {headers:auth})).json()).groups.some(g => g.id === 3), false);
     assert.equal((await createUser({ ...newUser, groupId: 3 })).status, 409);
-    assert.equal((await fetch(`${base}/api/groups`, { method: 'POST', headers: { ...auth, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ id:3, name:'Empty role', permissions:[2], expectedPermissions:[2,99] }) })).status, 409);
+    assert.equal((await fetch(`${base}/api/groups`, { method: 'POST', headers: { ...auth, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ id:3, name:'Empty role', expectedName:'Empty role', permissions:[2], expectedPermissions:[2,99] }) })).status, 409);
 
     assert.equal((await fetch(`${base}/api/projects/bad`, { headers: auth })).status, 400);
     const invalidFile = new FormData();

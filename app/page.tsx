@@ -611,7 +611,7 @@ function Groups() {
   const save = async () => {
     try {
       const values = await form.validateFields(); setSaving(true);
-      const response = await fetch("/api/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: values.name, permissions: checked.map(Number), ...(editing !== "new" && editing ? { id: editing.id, expectedPermissions: editing.permissionIds } : {}) }) });
+      const response = await fetch("/api/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: values.name, permissions: checked.map(Number), ...(editing !== "new" && editing ? { id: editing.id, expectedName: editing.name, expectedPermissions: editing.permissionIds } : {}) }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || "保存失败");
       message.success("角色已保存"); setEditing(null); setRevision((n) => n + 1);
     } catch (e) { if (e instanceof Error) message.error(e.message); } finally { setSaving(false); }
