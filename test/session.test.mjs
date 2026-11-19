@@ -19,11 +19,12 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     }
     if (req.url === "/api/account/mypermission/") {
       const token = req.headers.authorization;
-      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
+      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
       if (token === "JWT certificate-only") return res.end(JSON.stringify({ certificate_view: true, certificate_add: true }));
       if (token === "JWT item-only") return res.end(JSON.stringify({ staff_view: true, staff_item: true }));
       if (token === "JWT history-only") return res.end(JSON.stringify({ staff_salarydetail: true, staff_insurancedetail: true }));
       if (token === "JWT exam-only") return res.end(JSON.stringify({ exam_view: true }));
+      if (token === "JWT exam-result-only") return res.end(JSON.stringify({ exam_view: true, exam_exam_status: true }));
       if (token === "JWT salary-tax" || token === "JWT salary-deduction") return res.end(JSON.stringify({ salarydetail_view: true, salarydetail_change: true, [token === "JWT salary-tax" ? "salarydetail_deduction_change" : "salarydetail_commission_change"]: true }));
       return res.end(JSON.stringify(token === "JWT test-token" ? { user_view: true, group_view: true, project_file_upload: true, project_all_view: true, project_detail: true, project_bill_view: true, project_file_view: true, file_view: true, finance_view: true, staff_view: true, staff_add: true, staff_staff: true, staff_item: true, staff_insurancedetail: true, staff_insurancedetail_change: true, insurancedetail_download: true, salarydetail_view: true, salarydetail_change: true, salarydetail_deduction_change: true, salarydetail_commission_change: true, insurancedetail_view: true, staff_insurancedetail_change: true, insurancedetail_company_payproof: true, certificate_view: true, certificate_add: true, certificate_cert_status_change: true, exam_view: true, exam_exam_status: true, exam_cert_status: true } : token === "JWT staff-only" ? { staff_staff: true } : token === "JWT limited-token" ? { user_view: true } : token === `JWT ${managerToken}` ? { user_view: true } : token === "JWT bill-only" ? { project_bill_view: true } : token === "JWT project-role" ? { project_all_view: true, project_add: true, project_detail: true, project_file_delete: true } : {}));
     }
@@ -184,6 +185,12 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     for (const kind of ['exams', 'certificates']) for (const side of ['from', 'to']) { const response = await fetch(`${base}/api/personnel?kind=${kind}&q=OneSide${side === 'to' ? 'To' : 'From'}&${side}=2026-11-19`, { headers: auth }); assert.equal(response.status, 200); assert.equal((await response.json()).items[0].id, 99); }
     const examsPage = await fetch(`${base}/api/personnel?kind=exams&q=ExamPerson&examName=ExamName&examStatus=ON&certStatus=OFF&dateField=cert_date&from=2026-11-01&to=2026-11-30&page=2&pageSize=40`, { headers: auth });
     assert.equal(examsPage.status, 200); assert.equal((await examsPage.json()).items[0].id, 74);
+    for (const [token, expectedExam, expectedCert] of [['exam-only', '', ''], ['exam-result-only', 'ON', ''], ['test-token', 'ON', 'OFF']]) {
+      const response = await fetch(`${base}/api/personnel?kind=exams&q=PrivacyExam`, { headers: { cookie: `junyang_session=${token}` } });
+      assert.equal(response.status, 200); const item = (await response.json()).items[0];
+      assert.equal(item.exam_status, expectedExam); assert.equal(item.cert_status, expectedCert);
+    }
+    for (const filter of ['examStatus=ON', 'certStatus=OFF']) assert.equal((await fetch(`${base}/api/personnel?kind=exams&${filter}`, { headers: { cookie: 'junyang_session=exam-only' } })).status, 403);
     for (const query of ['dateField=bad', 'from=2026-02-30&to=2026-03-01', 'pageSize=50']) assert.equal((await fetch(`${base}/api/personnel?kind=exams&${query}`, { headers: auth })).status, 400);
     for (const query of ['orderBy=exam_date&orderDirection=asc', 'orderBy=cert_date&orderDirection=desc']) { const sorted = await fetch(`${base}/api/personnel?kind=exams&q=ExamSort&${query}`, { headers: auth }); assert.equal(sorted.status, 200); assert.equal((await sorted.json()).items[0].id, 75); }
     for (const query of ['orderBy=id', 'orderDirection=bad']) assert.equal((await fetch(`${base}/api/personnel?kind=exams&${query}`, { headers: auth })).status, 400);
@@ -273,6 +280,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await saveExam({ ...exam, staff_id: 72 })).status, 409);
     const existingExam = { ...exam, id: 2, cert_status: 'OFF', expected: { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19 10:00', exam_date_version: '2026-11-19 10:00:00.000000', exam_status: 'ON', cert_date: null, cert_date_version: null, cert_status: 'OFF', staff: null } };
     assert.equal((await saveExam(existingExam, { cookie: 'junyang_session=exam-only' })).status, 200);
+    assert.equal((await saveExam({ ...existingExam, id: 77, exam_status: '', cert_status: '', expected: { ...existingExam.expected, exam_status: '', cert_status: '' } }, { cookie: 'junyang_session=exam-only' })).status, 200);
     assert.equal((await saveExam({ ...existingExam, exam_status: 'OFF' }, { cookie: 'junyang_session=exam-only' })).status, 403);
     assert.equal((await saveExam({ ...existingExam, cert_status: 'ON' }, { cookie: 'junyang_session=exam-only' })).status, 403);
     assert.equal((await postJson('/api/personnel/certificate-batch', { ...batch, action: 'delete' }, { cookie: limitedCookie })).status, 403);

@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
   if (staffId && (!/^[1-9]\d{0,9}$/.test(staffId) || !["certificates", "exams"].includes(kind))) return NextResponse.json({ error: "人员编号无效" }, { status: 400 });
   const denied = await requirePermission(request, [config[kind].permission]);
   if (denied) return denied;
+  const examAccess = kind === "exams" ? await Promise.all([requirePermission(request, ["exam_exam_status"]), requirePermission(request, ["exam_cert_status"])]) : [];
+  const accessError = examAccess.find((result) => result && result.status !== 403);
+  if (accessError) return accessError;
   const page = Math.max(1, Math.min(10000, parseInt(request.nextUrl.searchParams.get("page") || "1", 10) || 1));
   const pageSizeParam = request.nextUrl.searchParams.get("pageSize");
   const pageSize = pageSizeParam === null ? 20 : Number(pageSizeParam);
@@ -52,6 +55,7 @@ export async function GET(request: NextRequest) {
   }
   if (kind === "exams") {
     const examStatus = request.nextUrl.searchParams.get("examStatus") || "", certStatus = request.nextUrl.searchParams.get("certStatus") || "";
+    if ((examStatus && examAccess[0]) || (certStatus && examAccess[1])) return NextResponse.json({ error: "当前账号没有查看该结果的权限" }, { status: 403 });
     const examName = (request.nextUrl.searchParams.get("examName") || "").trim().slice(0, 50);
     const field = request.nextUrl.searchParams.get("dateField") || "exam_date";
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
@@ -95,7 +99,7 @@ export async function GET(request: NextRequest) {
     const [counts] = await db.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM ${table} d ${join} WHERE ${where}`, values);
     const order = (kind === "exams" || kind === "certificates") && orderBy ? `d.${orderBy} ${orderDirection === "asc" ? "ASC" : "DESC"}, d.id ASC` : kind === "insurance" && sort === "asc" ? "d.date ASC, d.id ASC" : kind === "salary" || kind === "insurance" ? "d.date DESC, d.id DESC" : "d.id ASC";
     const [rows] = await db.execute<RowDataPacket[]>(`SELECT ${columns[kind]} FROM ${table} d ${join} WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?`, [...values, pageSize, (page - 1) * pageSize]);
-    return NextResponse.json({ total: counts[0].total, items: rows.map((row) => Object.fromEntries(config[kind].fields.map((key) => [key, key === "company_payproof" || key === "persenal_payproof" ? Boolean(row[key]) : row[key] ?? null]))) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ total: counts[0].total, items: rows.map((row) => Object.fromEntries(config[kind].fields.map((key) => [key, kind === "exams" && ((key === "exam_status" && examAccess[0]) || (key === "cert_status" && examAccess[1])) ? "" : key === "company_payproof" || key === "persenal_payproof" ? Boolean(row[key]) : row[key] ?? null]))) }, { headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "人员数据暂不可用" }, { status: 503 }); }
 }
 

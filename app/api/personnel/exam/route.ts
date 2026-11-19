@@ -21,10 +21,13 @@ export async function POST(request: NextRequest) {
   if ((editing && (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object")) || (body.staff_id !== undefined && (!Number.isSafeInteger(body.staff_id) || body.staff_id < 1)) || typeof body.exam_name !== "string" || body.exam_name.length > 50 || typeof body.exam_person_name !== "string" || body.exam_person_name.length > 15 || examDate === undefined || certDate === undefined || !["", "ON", "OFF"].includes(body.exam_status) || !["", "ON", "OFF"].includes(body.cert_status)) return NextResponse.json({ error: "考试信息无效" }, { status: 400 });
   if (!editing && !body.exam_name.trim() && !body.exam_person_name.trim() && !examDate) return NextResponse.json({ error: "请至少填写考试名称、人员或考试时间中的一项" }, { status: 400 });
   const permissions = ["exam_view"];
-  if ((body.exam_status || null) !== (editing ? body.expected.exam_status : null)) permissions.push("exam_exam_status");
-  if ((body.cert_status || null) !== (editing ? body.expected.cert_status : null)) permissions.push("exam_cert_status");
+  if ((body.exam_status || null) !== (editing ? body.expected.exam_status || null : null)) permissions.push("exam_exam_status");
+  if ((body.cert_status || null) !== (editing ? body.expected.cert_status || null : null)) permissions.push("exam_cert_status");
   const denied = await requirePermission(request, permissions);
   if (denied) return denied;
+  const statusAccess = await Promise.all([requirePermission(request, ["exam_exam_status"]), requirePermission(request, ["exam_cert_status"])]);
+  const accessError = statusAccess.find((result) => result && result.status !== 403);
+  if (accessError) return accessError;
   try {
     const connection = await getMysql().getConnection();
     try {
@@ -33,15 +36,18 @@ export async function POST(request: NextRequest) {
       const unchangedPerson = editing && (body.staff_id === undefined || body.staff_id === body.expected.staff) && person === (body.expected.exam_person_name || "");
       const [staff] = unchangedPerson || (!person && body.staff_id === undefined) ? [[]] : body.staff_id === undefined ? await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE name = ? ORDER BY id LIMIT 1", [person]) : await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE id = ? AND name = ? LIMIT 1", [body.staff_id, person]);
       if (body.staff_id !== undefined && !unchangedPerson && !staff.length) { await connection.rollback(); return NextResponse.json({ error: "关联人员不存在或姓名已变化，请刷新后重试" }, { status: 409 }); }
-      const values = [body.exam_name.trim() || (editing && body.expected.exam_name === "" ? "" : null), person || (editing && body.expected.exam_person_name === "" ? "" : null), examDate, body.exam_status || null, certDate, body.cert_status || null, unchangedPerson ? body.expected.staff : staff[0]?.id || null];
+      const values = [body.exam_name.trim() || (editing && body.expected.exam_name === "" ? "" : null), person || (editing && body.expected.exam_person_name === "" ? "" : null), examDate, statusAccess[0] ? null : body.exam_status || null, certDate, statusAccess[1] ? null : body.cert_status || null, unchangedPerson ? body.expected.staff : staff[0]?.id || null];
       if (editing) {
         const expected = [body.expected.exam_name, body.expected.exam_person_name, body.expected.exam_date, body.expected.exam_status, body.expected.cert_date, body.expected.cert_status, body.expected.staff];
         if (expected.some((value) => value === undefined || (value !== null && typeof value !== "string" && typeof value !== "number"))) { await connection.rollback(); return NextResponse.json({ error: "记录版本无效" }, { status: 400 }); }
         const versions = [body.expected.exam_date_version, body.expected.cert_date_version];
         if (versions.some((value) => value !== null && (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$/.test(value)))) { await connection.rollback(); return NextResponse.json({ error: "记录版本无效，请刷新后重试" }, { status: 400 }); }
         const compared = [...expected]; compared[2] = versions[0]; compared[4] = versions[1];
-        const changed = ["exam_name", "exam_person_name", "exam_date", "exam_status", "cert_date", "cert_status", "staff_id"].map((field, index) => ({ field, value: values[index], skip: (field === "exam_date" || field === "cert_date") && values[index] === expected[index] }));
-        const [result] = await connection.execute<ResultSetHeader>(`UPDATE staff_exam SET ${changed.filter((item) => !item.skip).map((item) => `${item.field}=?`).join(", ")} WHERE id=? AND NOT EXISTS (SELECT 1 FROM junyang_deleted_personnel deleted WHERE deleted.kind = 'exams' AND deleted.record_id = staff_exam.id) AND exam_name <=> ? AND exam_person_name <=> ? AND DATE_FORMAT(exam_date, '%Y-%m-%d %H:%i:%s.%f') <=> ? AND exam_status <=> ? AND DATE_FORMAT(cert_date, '%Y-%m-%d %H:%i:%s.%f') <=> ? AND cert_status <=> ? AND staff_id <=> ?`, [...changed.filter((item) => !item.skip).map((item) => item.value), body.id, ...compared]);
+        const fields = ["exam_name", "exam_person_name", "exam_date", "exam_status", "cert_date", "cert_status", "staff_id"];
+        const accessible = fields.map((field) => field === "exam_status" ? !statusAccess[0] : field === "cert_status" ? !statusAccess[1] : true);
+        const changed = fields.map((field, index) => ({ field, value: values[index], skip: !accessible[index] || ((field === "exam_date" || field === "cert_date") && values[index] === expected[index]) }));
+        const comparisons = fields.map((field, index) => ({ sql: field === "exam_date" || field === "cert_date" ? `DATE_FORMAT(${field}, '%Y-%m-%d %H:%i:%s.%f') <=> ?` : `${field} <=> ?`, value: compared[index], allowed: accessible[index] })).filter((item) => item.allowed);
+        const [result] = await connection.execute<ResultSetHeader>(`UPDATE staff_exam SET ${changed.filter((item) => !item.skip).map((item) => `${item.field}=?`).join(", ")} WHERE id=? AND NOT EXISTS (SELECT 1 FROM junyang_deleted_personnel deleted WHERE deleted.kind = 'exams' AND deleted.record_id = staff_exam.id) AND ${comparisons.map((item) => item.sql).join(" AND ")}`, [...changed.filter((item) => !item.skip).map((item) => item.value), body.id, ...comparisons.map((item) => item.value)]);
         if (!result.affectedRows) { await connection.rollback(); return NextResponse.json({ error: "考试记录已变化或不存在，请刷新后重试" }, { status: 409 }); }
       } else await connection.execute("INSERT INTO staff_exam (exam_name, exam_person_name, exam_date, exam_status, cert_date, cert_status, staff_id) VALUES (?, ?, ?, ?, ?, ?, ?)", values);
       await connection.commit(); return NextResponse.json({ ok: true });
