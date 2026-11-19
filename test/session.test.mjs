@@ -255,6 +255,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await fetch(`${base}/api/personnel/insurance-file`, { method: 'POST', headers: { cookie: limitedCookie, origin: base }, body: proof })).status, 403);
     assert.equal((await fetch(`${base}/api/personnel/insurance-file`, { method: 'POST', headers: { ...auth, origin: base }, body: proof })).status, 200);
     const postJson = (route, payload, headers = auth) => fetch(`${base}${route}`, { method: 'POST', headers: { ...headers, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    assert.equal((await postJson('/api/finance/transfers', { action: 'create', receiptId: '000000000000000000000001', updatedAt: '2026-11-01T00:00:00.000Z', date: '', amount: '1.00', note: '长'.repeat(10001) })).status, 400);
     const batch = { action: 'update', records: [{ id: 1, status: 'OFF', nextDate: null }], status: 'ON', nextDate: '' };
     assert.equal((await postJson('/api/personnel/certificate-batch', { action: 'update', records: [{ id: 2, status: 'ON_HALF', nextDate: null }], status: 'OFF_HALF', nextDate: '' })).status, 200);
     assert.equal((await postJson('/api/personnel/certificate-batch', { action: 'update', records: [{ id: 2, status: 'ON_HALF', nextDate: null }], status: 'bad', nextDate: '' })).status, 400);
