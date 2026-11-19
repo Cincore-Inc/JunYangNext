@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const row = await (await getMongo()).db("junyang-finance").collection("receipts").findOne({ _id: new ObjectId(id) }, { projection: { transferRecords: 1, updatedAt: 1, status: 1 }, maxTimeMS: 10000 });
     if (!row) return NextResponse.json({ error: "收票不存在" }, { status: 404 });
     const records = Array.isArray(row.transferRecords) ? row.transferRecords : [];
-    return NextResponse.json({ updatedAt: row.updatedAt || null, status: row.status || "未设置", items: records.map((item, index) => ({ id: String(item._id || ""), date: item.date || null, amount: Number(item.amount ?? 0), note: item.note || "", hasFile: Boolean(item.file), index })) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ updatedAt: row.updatedAt || null, status: row.status || "未设置", items: records.map((item, index) => ({ id: String(item._id || ""), date: item.date || null, amount: Number(item.amount ?? 0), note: item.note || "", hasFile: Boolean(item.file), extension: typeof item.file === "string" && item.file.includes(".") ? item.file.split(".").pop()?.toLowerCase() || "" : "", index })) }, { headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "无法读取转账记录" }, { status: 503 }); }
 }
 
