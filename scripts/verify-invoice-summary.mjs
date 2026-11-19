@@ -26,10 +26,10 @@ try {
     const collection = client.db('junyang-finance').collection(kind);
     const original = await collection.aggregate([
       { $group: { _id: { category: '$ticketClass', value: `$${group}` }, tax: { $sum: '$tax' }, net: { $sum: '$amountWithoutTax' }, amount: { $sum: '$amount' } } },
-    ], { maxTimeMS: 10000 }).toArray();
+    ], { maxTimeMS: 10000, batchSize: 5000 }).toArray();
     const current = await collection.aggregate([
       { $group: { _id: grouping(group), st: sumFor('专票', 'tax'), sn: sumFor('专票', 'amountWithoutTax'), sa: sumFor('专票', 'amount'), ot: sumFor('普票', 'tax'), on: sumFor('普票', 'amountWithoutTax'), oa: sumFor('普票', 'amount') } },
-    ], { maxTimeMS: 10000 }).toArray();
+    ], { maxTimeMS: 10000, batchSize: 5000 }).toArray();
     const expected = new Map();
     for (const row of original) {
       const key = legacyKey(row._id.value, group);
