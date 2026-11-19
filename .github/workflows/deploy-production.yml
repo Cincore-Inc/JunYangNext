@@ -99,7 +99,8 @@ jobs:
           git fetch --prune origin
           git checkout --detach --force "$DEPLOY_REVISION"
           sudo docker load --input "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
-          sudo env JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
+          sudo docker tag "junyang-next:$DEPLOY_REVISION" junyang-next:latest
+          sudo docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
           curl --fail --silent --show-error --retry 10 --retry-delay 2 http://127.0.0.1:8010/login >/dev/null
           rm -f "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
           REMOTE
