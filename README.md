@@ -36,6 +36,6 @@ npm run dev
 
 配置完成后可运行 `npm run check:migration` 做只读预检：检查独立认证配置、数据库读取、MongoDB 事务能力、软删除标记表以及待迁移的人员媒体。对象存储只检查配置是否存在，不检查读写权限；预检不能替代附件、业务权限和页面操作测试。
 
-运行 `npm run build` 后可用 `npm run test:integration` 检查旧 Core 不可用时的项目新增、改名和同步、财务筛选及附件上传、预览、下载。测试使用临时 MongoDB、模拟 MySQL 和 OSS，不连接生产数据；首次运行可能需要下载 MongoDB 测试程序。它不能替代真实存储及浏览器验收。
+运行 `npm run build` 后可用 `npm run test:integration` 检查旧 Core 不可用时的项目新增、改名和同步、财务筛选与新增编辑、票据复制的保存接口及附件上传、预览、下载。测试使用临时 MongoDB、模拟 MySQL 和 OSS，不连接生产数据；首次运行可能需要下载 MongoDB 测试程序。它不能替代真实存储及浏览器验收。
 
 财务列表及项目交易明细查询可运行 `node scripts/ensure-finance-indexes.mjs` 创建所需的 MongoDB 索引；脚本会检查已有同键索引，可重复执行。

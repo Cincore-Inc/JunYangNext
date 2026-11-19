@@ -14,7 +14,7 @@ async function freePort() {
   return port;
 }
 
-test('旧服务关闭时项目、财务筛选和附件仍可使用', { timeout: 120000 }, async () => {
+test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000 }, async () => {
   const database = await MongoMemoryReplSet.create({ binary: { version: '7.0.24' }, replSet: { count: 1, ip: '127.0.0.1' } });
   const client = await new MongoClient(database.getUri()).connect();
   const base = `http://127.0.0.1:${await freePort()}`;
@@ -53,6 +53,29 @@ test('旧服务关闭时项目、财务筛选和附件仍可使用', { timeout: 
       params.set('mode', kind === 'transactions' ? 'transactionMatrix' : 'invoiceMatrix');
       const summary = await fetch(`${base}/api/finance/summary?${params}`, { headers: { cookie } });
       assert.equal(summary.status, 200); assert.equal((await summary.json()).items.reduce((sum, row) => sum + row.total, 0), 300);
+    }
+    const writeFinance = (path, method, payload) => fetch(`${base}/api/finance/${path}`, { method, headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    const refs = { projectId: createdId, companyId: '12345678-1234-1234-1234-123456789abc', date: '2026-11-19' };
+    assert.equal((await writeFinance('create', 'POST', { kind: 'transactions', ...refs, title: '独立交易', type: '材料费', amount: '-123.45' })).status, 200);
+    const transactions = client.db('junyang-finance').collection('transactions');
+    const transaction = await transactions.findOne({ title: '独立交易' });
+    assert.equal(Number(transaction.amount), -12345); assert.equal(transaction.direction, 'outgoing'); assert.equal(transaction.project.value, createdId);
+    assert.equal((await writeFinance('transaction', 'PATCH', { id: String(transaction._id), updatedAt: transaction.updatedAt.toISOString(), title: '修改交易', amount: '200.50', status: '未对账' })).status, 200);
+    const editedTransaction = await transactions.findOne({ _id: transaction._id });
+    assert.equal(Number(editedTransaction.amount), 20050); assert.equal(editedTransaction.direction, 'income'); assert.equal(editedTransaction.title, '修改交易');
+    for (const kind of ['receipts', 'invoices']) {
+      const collection = client.db('junyang-finance').collection(kind);
+      const numberField = kind === 'receipts' ? 'receiptId' : 'invoiceId';
+      const number = `${kind}-independent`;
+      assert.equal((await writeFinance('create', 'POST', { kind, ...refs, number, party: '测试公司', ticketClass: '专票', amountWithoutTax: '100', tax: '6', projectNumber: 77 })).status, 200);
+      const original = await collection.findOne({ [numberField]: number });
+      assert.equal(Number(original.amount), 10600); assert.equal(original.projectNumber, 77); assert.equal(original.project.value, createdId);
+      assert.equal((await writeFinance('invoice', 'PATCH', { kind, id: String(original._id), updatedAt: original.updatedAt.toISOString(), number, party: '更新公司', ticketClass: '专票', amountWithoutTax: '200', tax: '12', ticketStatus: '有效', status: '已对账' })).status, 200);
+      const edited = await collection.findOne({ _id: original._id });
+      assert.equal(Number(edited.amount), 21200); assert.equal(edited.status, '已对账'); assert.ok(edited.verifiedAt);
+      assert.equal((await writeFinance('create', 'POST', { kind, ...refs, number: `${number}-copy`, party: '更新公司', ticketClass: '专票', amountWithoutTax: '0', tax: '0', projectNumber: edited.projectNumber })).status, 200);
+      const copy = await collection.findOne({ [numberField]: `${number}-copy` });
+      assert.equal(copy.projectNumber, 77); assert.equal(Number(copy.amount), 0); assert.equal(copy.status, '未对账');
     }
     const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
     for (const kind of ['projects', 'files', 'receipts', 'transactions']) {
