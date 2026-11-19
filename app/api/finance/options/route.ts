@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       const historical = Boolean(query && request.nextUrl.searchParams.get("historical") === "1");
       if (historical && !["transactions", "receipts", "invoices"].includes(source)) return NextResponse.json({ error: "数据类型无效" }, { status: 400 });
       const [rows, refs] = await Promise.all([
-        projects.find(query ? { name: { $regex: escaped, $options: "i" } } : {}, { projection: { name: 1 }, maxTimeMS: 10000 }).sort({ updatedAt: -1, _id: -1 }).limit(50).toArray(),
+        projects.find(query ? { $or: [{ name: { $regex: escaped, $options: "i" } }, { namePY: { $regex: escaped, $options: "i" } }] } : {}, { projection: { name: 1 }, maxTimeMS: 10000 }).sort({ updatedAt: -1, _id: -1 }).limit(50).toArray(),
         historical ? client.db("junyang-finance").collection(source).aggregate([
           { $match: { "project.value": { $type: "string", $regex: "^[a-fA-F0-9]{24}$" }, $or: [{ "project.label": { $regex: escaped, $options: "i" } }, { "project.name": { $regex: escaped, $options: "i" } }, { "project.value": { $regex: escaped, $options: "i" } }] } },
           { $group: { _id: "$project.value", label: { $first: { $ifNull: ["$project.label", "$project.name"] } } } },
