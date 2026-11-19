@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const won = request.nextUrl.searchParams.get("won") === "1";
     const bidStatuses = (request.nextUrl.searchParams.get("bidStatuses") || "").split(",").filter(Boolean);
     const bidMethods = (request.nextUrl.searchParams.get("bidMethods") || "").split(",").filter(Boolean);
-    if (bidStatuses.some((value) => !["投标中", "已中标", "未中标"].includes(value)) || bidMethods.some((value) => !["低价中标", "邀标低价", "库内低价", "抽选", "电子标", "综合评选"].includes(value))) return NextResponse.json({ error: "筛选条件无效" }, { status: 400 });
+    if (bidStatuses.some((value) => !["投标中", "已中标", "未中标", "__unset__"].includes(value)) || bidMethods.some((value) => !["低价中标", "邀标低价", "库内低价", "抽选", "电子标", "综合评选", "__unset__"].includes(value))) return NextResponse.json({ error: "筛选条件无效" }, { status: 400 });
     const number = (request.nextUrl.searchParams.get("number") || "").trim();
     if (number && (!/^\d+$/.test(number) || !Number.isSafeInteger(Number(number)))) return NextResponse.json({ error: "项目编号无效" }, { status: 400 });
     const winner = (request.nextUrl.searchParams.get("winner") || "").trim().slice(0,100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const sorts = { createdDesc: { createdAt: -1, _id: -1 }, updatedDesc: { updatedAt: -1, _id: -1 }, updatedAsc: { updatedAt: 1, _id: 1 }, numberDesc: { projectNumber: -1, _id: -1 }, numberAsc: { projectNumber: 1, _id: 1 }, nameAsc: { name: 1, _id: 1 }, nameDesc: { name: -1, _id: -1 } } as const;
     const sort = sorts[sortKey as keyof typeof sorts] || sorts.createdDesc;
     const filter = {
-      ...(won ? { bidStatus: "已中标" } : bidStatuses.length ? { bidStatus: { $in: bidStatuses } } : {}), ...(bidMethods.length ? { bidMethod: { $in: bidMethods } } : {}),
+      ...(won ? { bidStatus: "已中标" } : bidStatuses.length ? { bidStatus: { $in: bidStatuses.flatMap((value): (string | null)[] => value === "__unset__" ? [null, ""] : [value]) } } : {}), ...(bidMethods.length ? { bidMethod: { $in: bidMethods.flatMap((value): (string | null)[] => value === "__unset__" ? [null, ""] : [value]) } } : {}),
       ...(number ? { projectNumber: Number(number) } : {}), ...(winnerId ? { "winner.value": winnerId } : winner ? { "winner.label": { $regex: winner, $options: "i" } } : {}), ...(bidder ? { "bidderCompanies.name": { $regex: bidder, $options: "i" } } : {}), ...(start || end ? { [won ? "projectStart" : "bidStartTime"]: { ...(start && { $gte: start }), ...(end && { $lt: new Date(end.getTime() + 86400000) }) } } : {}), ...(won && (finishStart || finishEnd) ? { projectEnd: { ...(finishStart && { $gte: finishStart }), ...(finishEnd && { $lt: new Date(finishEnd.getTime() + 86400000) }) } } : {}),
       ...(query ? { $or: [{ name: { $regex: escaped, $options: "i" } }, { namePY: { $regex: escaped, $options: "i" } }, { tags: { $regex: escaped, $options: "i" } }, { person: { $regex: escaped, $options: "i" } }, { purpose: { $regex: escaped, $options: "i" } }, { title: { $regex: escaped, $options: "i" } }, { issuer: { $regex: escaped, $options: "i" } }, { todo: { $regex: escaped, $options: "i" } }, { description: { $regex: escaped, $options: "i" } }, { bidders: { $regex: escaped, $options: "i" } }, { "bidderCompanies.name": { $regex: escaped, $options: "i" } }, { notes: { $regex: escaped, $options: "i" } }, ...(/^\d+$/.test(query) ? [{ projectNumber: Number(query) }] : [])] } : {}),
       ...(status === "__unset__" ? { projectStatus: { $in: [null, ""] } } : status ? { projectStatus: status } : {}),
