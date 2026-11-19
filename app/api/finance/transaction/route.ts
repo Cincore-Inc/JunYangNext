@@ -24,13 +24,13 @@ export async function PATCH(request: NextRequest) {
   try {
     const collection = (await getMongo()).db("junyang-finance").collection("transactions");
     const filter = { _id: new ObjectId(body.id), updatedAt: version, status: { $ne: "已对账" } };
-    const existing = await collection.findOne(filter, { projection: { transactionDate: 1, verifiedAt: 1 }, maxTimeMS: 10000 });
+    const existing = await collection.findOne(filter, { projection: { transactionDate: 1, verifiedAt: 1, transactionType: 1, title: 1 }, maxTimeMS: 10000 });
     if (!existing) return NextResponse.json({ error: "记录已对账、已变化或不存在，请刷新后重试" }, { status: 409 });
     const [project, company] = await Promise.all([body.projectId !== undefined ? financeProjectReference(body.projectId) : undefined, body.companyId !== undefined ? financeCompanyReference(body.companyId) : undefined]);
     if ((body.projectId !== undefined && !project) || (body.companyId !== undefined && !company)) return NextResponse.json({ error: "项目或公司不存在" }, { status: 400 });
     const previousDate = existing.transactionDate instanceof Date ? new Date(existing.transactionDate.getTime() + 8 * 3600000).toISOString().slice(0, 10) : "";
     const now = new Date(Math.max(Date.now(), version.getTime() + 1));
-    const result = await collection.updateOne(filter, { $set: { ...extra, ...(project ? { project: project.ref } : {}), ...(company ? { company } : {}), amount: Long.fromNumber(amount), ...(body.date !== undefined ? { transactionDate: day && previousDate === body.date ? existing.transactionDate : day } : {}), ...(body.type !== undefined ? { transactionType: body.type.trim() } : {}), title: body.title.trim(), ...(amount === 0 ? {} : { direction: amount > 0 ? "income" : "outgoing" }), status: body.status === "未设置" ? null : body.status, updatedAt: now, ...(verifiedAt !== undefined ? { verifiedAt } : body.status === "已对账" && !existing.verifiedAt ? { verifiedAt: now } : {}) } }, { maxTimeMS: 10000 });
+    const result = await collection.updateOne(filter, { $set: { ...extra, ...(project ? { project: project.ref } : {}), ...(company ? { company } : {}), amount: Long.fromNumber(amount), ...(body.date !== undefined ? { transactionDate: day && previousDate === body.date ? existing.transactionDate : day } : {}), ...(body.type !== undefined && body.type !== (existing.transactionType ?? "") ? { transactionType: body.type.trim() } : {}), ...(body.title !== (existing.title ?? "") ? { title: body.title.trim() } : {}), ...(amount === 0 ? {} : { direction: amount > 0 ? "income" : "outgoing" }), status: body.status === "未设置" ? null : body.status, updatedAt: now, ...(verifiedAt !== undefined ? { verifiedAt } : body.status === "已对账" && !existing.verifiedAt ? { verifiedAt: now } : {}) } }, { maxTimeMS: 10000 });
     if (!result.matchedCount) return NextResponse.json({ error: "记录已对账、已变化或不存在，请刷新后重试" }, { status: 409 });
     return NextResponse.json({ ok: true });
   } catch { return NextResponse.json({ error: "保存结果未知，请刷新列表确认后再试" }, { status: 503 }); }
