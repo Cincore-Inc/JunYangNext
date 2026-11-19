@@ -4,9 +4,10 @@ import { getMongo } from "@/lib/db";
 import { getMysql } from "@/lib/mysql";
 
 export async function financeReferences(projectId: unknown, companyId: unknown) {
-  const [project, company] = await Promise.all([financeProjectReference(projectId), financeCompanyReference(companyId)]);
-  if (!project || !company) return null;
-  return { project: project.ref, company, projectNumber: project.projectNumber };
+  if ((projectId != null && typeof projectId !== "string") || (companyId != null && typeof companyId !== "string")) return null;
+  const [project, company] = await Promise.all([projectId ? financeProjectReference(projectId) : null, companyId ? financeCompanyReference(companyId) : null]);
+  if ((projectId && !project) || (companyId && !company)) return null;
+  return { project: project?.ref, company: company || undefined, projectNumber: project?.projectNumber };
 }
 
 export async function financeProjectReference(id: unknown) {
