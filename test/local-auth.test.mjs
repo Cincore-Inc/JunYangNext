@@ -40,6 +40,9 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     const fileOptions = async (suffix = '', session = managerCookie) => fetch(base + '/api/files/options?people=OptionFile' + suffix, { headers: { cookie: session } });
     assert.equal((await fileOptions('&historical=1', cookie)).status, 403);
     assert.deepEqual((await (await fileOptions()).json()).items.map(item => item.label), ['OptionFile']);
+    const missingPinyin = await fetch(base + '/api/files/options?people=ZH', { headers: { cookie: managerCookie } });
+    assert.equal(missingPinyin.status, 200); assert.deepEqual((await missingPinyin.json()).items, [{ value: '11111111-1111-4111-8111-111111111111', label: '张浩' }]);
+    assert.equal((await fetch(base + '/api/files/options?people=ZH', { headers: { cookie } })).status, 403);
     const historicalFileOptions = await (await fileOptions('&historical=1')).json();
     assert.deepEqual(historicalFileOptions.items.map(item => item.label), ['OptionFile', 'OptionFile old（已删除）']);
     assert.equal(historicalFileOptions.items[1].value, '00000000-0000-0000-0000-000000000002');
