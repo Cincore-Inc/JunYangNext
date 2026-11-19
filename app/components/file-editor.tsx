@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { App, Button, Form, Input, Popconfirm, Select, Space } from "antd";
-import dayjs from "dayjs";
 import FormDrawer from "./form-drawer";
 import StringDatePicker from "./string-date-picker";
 import { useAccess } from "./access";
@@ -10,6 +9,7 @@ import { useAccess } from "./access";
 export type EditableFile = { id: string; filename: string; type: string; subtype: string; owner: string; associates: string[]; tags: string[]; note: string; effectiveFrom: string | null; expiresAt: string | null; needRenew: boolean | null; status: string; updatedAt: string | null };
 type Option = { value: string; label: string };
 type Category = { name: string; subCategories: string[] };
+const dateInChina = (value: string | null) => value ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)) : "";
 
 export default function FileEditor({ file, categories, tags, onChanged }: { file: EditableFile; categories: Category[]; tags: string[]; onChanged: () => void }) {
   const { can } = useAccess();
@@ -31,7 +31,7 @@ export default function FileEditor({ file, categories, tags, onChanged }: { file
     } catch (e) { if (current === searchCounter.current) message.error(e instanceof Error ? e.message : "无法读取关联选项"); }
   };
   const show = () => {
-    const values = { filename: file.filename, type: file.type, subtype: file.subtype, owner: file.owner || undefined, associates: file.associates, tags: file.tags, note: file.note, effectiveFrom: file.effectiveFrom ? dayjs(file.effectiveFrom).format("YYYY-MM-DD") : "", expiresAt: file.expiresAt ? dayjs(file.expiresAt).format("YYYY-MM-DD") : "", needRenew: file.needRenew, status: file.status };
+    const values = { filename: file.filename, type: file.type, subtype: file.subtype, owner: file.owner || undefined, associates: file.associates, tags: file.tags, note: file.note, effectiveFrom: dateInChina(file.effectiveFrom), expiresAt: dateInChina(file.expiresAt), needRenew: file.needRenew, status: file.status };
     initial.current = values; form.setFieldsValue(values); setOpen(true);
     const ids = [...new Set([file.owner, ...file.associates].filter(v => /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(v)))];
     if (ids.length) void fetchPeople(ids.slice(0, 60).join(","), true);
