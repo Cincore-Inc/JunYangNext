@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
   const date = typeof entrydate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(entrydate) ? new Date(`${entrydate}T00:00:00Z`) : null;
   if (typeof name !== "string" || !name.trim() || name.trim().length > 15 || typeof phone !== "string" || (!isEdit && !phone.trim()) || phone.length > 20 || typeof position !== "string" || position.length > 15 || (!isEdit && !entrydate) || (entrydate !== null && (!date || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== entrydate)) || (!isEdit && !staff_status) || (staff_status !== null && !["ON", "OFF", "ON-TRY", "ON-HALF"].includes(staff_status))) return NextResponse.json({ error: "请正确填写人员信息" }, { status: 400 });
   const hasSalary = body.salary !== undefined || body.percentage !== undefined;
+  const expectedFields = ["name", "phone", "position", "entrydate", "staff_status", ...(hasSalary ? ["salary", "percentage"] : [])];
+  if (isEdit && (!body.expected || typeof body.expected !== "object" || expectedFields.some((field) => !Object.hasOwn(body.expected, field)))) return NextResponse.json({ error: "请刷新人员资料后重试" }, { status: 400 });
   if ((!isEdit || hasSalary) && !((isEdit && body.salary === null) || (typeof body.salary === "number" && Number.isFinite(body.salary) && body.salary >= 0 && body.salary <= 10000000))) return NextResponse.json({ error: "请正确填写工资" }, { status: 400 });
   if ((!isEdit || hasSalary) && !((isEdit && body.percentage === null) || (Number.isInteger(body.percentage) && body.percentage >= 0 && body.percentage <= 100))) return NextResponse.json({ error: "请正确填写提成比例" }, { status: 400 });
   if (isEdit && hasSalary) { const salaryDenied = await requirePermission(request, ["salarydetail_view", "salarydetail_change"]); if (salaryDenied) return salaryDenied; }
@@ -49,8 +51,9 @@ export async function POST(request: NextRequest) {
       await connection.beginTransaction();
       const namePinyin = pinyin(data.name, { pattern: "first", toneType: "none", type: "array" }).join("");
       if (isEdit) {
-        const [existing] = await connection.execute<RowDataPacket[]>("SELECT id, name FROM staff_staff WHERE id = ? FOR UPDATE", [body.id]);
+        const [existing] = await connection.execute<RowDataPacket[]>(`SELECT id, name, phone, position, DATE_FORMAT(entrydate, '%Y-%m-%d') AS entrydate, staff_status${hasSalary ? ", salary, percentage" : ""} FROM staff_staff WHERE id = ? FOR UPDATE`, [body.id]);
         if (!existing.length) { await connection.rollback(); return NextResponse.json({ error: "人员不存在" }, { status: 404 }); }
+        if (expectedFields.some(field => (existing[0][field] ?? null) !== (body.expected[field] ?? null))) { await connection.rollback(); return NextResponse.json({ error: "人员资料已变化，请刷新后重试" }, { status: 409 }); }
         await connection.execute("UPDATE staff_staff SET name = ?, name_pinyin = ?, phone = ?, position = ?, entrydate = ?, staff_status = ? WHERE id = ?", [data.name, namePinyin, data.phone, data.position, data.entrydate, data.staff_status, body.id]);
         if (hasSalary) await connection.execute("UPDATE staff_staff SET salary = ?, percentage = ? WHERE id = ?", [body.salary, body.percentage, body.id]);
         if (existing[0].name !== data.name) {

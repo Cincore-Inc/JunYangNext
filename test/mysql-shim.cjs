@@ -26,7 +26,7 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('SELECT id, username, is_active FROM auth_user')) return [[{ id: params[0], username: 'before', is_active: 1 }]];
       if (sql.startsWith('SELECT g.name FROM auth_user_groups')) return [params[0] === 123 ? [{ name: 'Role' }, { name: 'Other' }] : [{ name: 'Role' }]];
       if (sql.startsWith('DELETE FROM auth_user_groups') && params[0] === 123) throw new Error('roles must be preserved');
-      if (sql.startsWith('SELECT id, name FROM staff_staff WHERE id = ? FOR UPDATE')) return [params[0] === 999 ? [] : [{id: params[0], name: params[0] === 2 ? 'New Person' : 'Old Person'}]];
+      if (sql.startsWith('SELECT id, name, phone, position, DATE_FORMAT(entrydate') && sql.includes('FOR UPDATE')) return [params[0] === 999 ? [] : [{id: params[0], name: params[0] === 2 ? 'New Person' : 'Old Person', phone: '123', position: '资料员', entrydate: '2026-11-01', staff_status: 'ON', salary: 5000, percentage: 5}]];
       if (sql.startsWith('SELECT id, name FROM staff_staff')) return [[{ id: 10, name: 'Person' }]];
       if (sql.startsWith('SELECT id, user_id FROM staff_staff')) return [[{ id: params[0], user_id: params[0] === 10 ? null : 1 }]];
       if (sql.startsWith('SELECT id FROM staff_staff WHERE id = ? AND name = ?')) return [params[0] === 71 && params[1] === 'Person' ? [{id:71}] : []]; if (sql.startsWith('SELECT id FROM staff_staff WHERE name')) return [params[0] === 'Duplicate' ? [{ id: 10 }] : []];

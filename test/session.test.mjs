@@ -137,7 +137,8 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal(detail.name, "Test"); assert.equal(detail.salary, 123); assert.equal("id_card" in detail, false);
     const restrictedDetail = await (await fetch(`${base}/api/staff/write?id=1`, { headers: { cookie: "junyang_session=staff-only" } })).json(); assert.equal("salary" in restrictedDetail, false);
     const person = { name: "New Person", phone: "123", position: "资料员", entrydate: "2026-11-01", staff_status: "ON", salary: 5000, percentage: 5 };
-    const write = (payload, headers = auth) => fetch(`${base}/api/staff/write`, { method: "POST", headers: { ...headers, origin: base, "content-type": "application/json" }, body: JSON.stringify(payload) });
+    const staffExpected = (id) => ({ name: id === 2 ? "New Person" : "Old Person", phone: "123", position: "资料员", entrydate: "2026-11-01", staff_status: "ON", salary: 5000, percentage: 5 });
+    const write = (payload, headers = auth) => fetch(`${base}/api/staff/write`, { method: "POST", headers: { ...headers, origin: base, "content-type": "application/json" }, body: JSON.stringify(payload.id ? { expected: staffExpected(payload.id), ...payload } : payload) });
     assert.equal((await write(person, { cookie: limitedCookie })).status, 403);
     assert.equal((await write({ ...person, salary: -1 })).status, 400);
     assert.equal((await write({ ...person, name: "Duplicate" })).status, 409);
@@ -145,6 +146,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await write(person)).status, 200);
     assert.equal((await write({ ...person, id: 1 }, { cookie: "junyang_session=staff-only" })).status, 403);
     assert.equal((await write({ ...person, id: 1 })).status, 200);
+    assert.equal((await write({ ...person, id: 1, expected: { ...staffExpected(1), phone: "stale" } })).status, 409);
+    assert.equal((await write({ ...person, id: 1, expected: { ...staffExpected(1), salary: 123 } })).status, 409);
+    assert.equal((await write({ id: 1, name: "New Person", phone: "123", position: "资料员", entrydate: "2026-11-01", staff_status: "ON" }, { cookie: "junyang_session=staff-only" })).status, 200);
     assert.equal((await write({ ...person, id: 2 })).status, 200);
     assert.equal((await write({ ...person, id: 1, salary: null, percentage: null })).status, 200);
     assert.equal((await write({ name: "New Person", id: 1, phone: "", position: "", entrydate: null, staff_status: null })).status, 200);

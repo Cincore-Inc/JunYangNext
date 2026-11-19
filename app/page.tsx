@@ -520,6 +520,7 @@ function StaffPage() {
   const [statusInput, setStatusInput] = useState("");
   const [insuranceInput, setInsuranceInput] = useState("");
   const [range, setRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+  const staffOriginal = useRef<Record<string, unknown> | null>(null);
   const [filters, setFilters] = useState({ insurance: "", from: "", to: "" });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -538,14 +539,14 @@ function StaffPage() {
   const openStaff = async (row?: Staff) => {
     form.resetFields();
     if (!row) { form.setFieldsValue({ staff_status: "ON", salary: 0, percentage: 0 }); setEditing("new"); return; }
-    try { const values = await readJSON(`/api/staff/write?id=${row.id}`); form.setFieldsValue(values); setEditing(row.id); } catch (e) { message.error(e instanceof Error ? e.message : "无法读取人员信息"); }
+    try { const values = await readJSON<Record<string, unknown>>(`/api/staff/write?id=${row.id}`); staffOriginal.current = values; form.setFieldsValue(values); setEditing(row.id); } catch (e) { message.error(e instanceof Error ? e.message : "无法读取人员信息"); }
   };
   const saveStaff = async () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
       const { salary, percentage, ...basicValues } = values;
-      const response = await fetch("/api/staff/write", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...basicValues, position: values.position || "", ...(editing === "new" ? { salary, percentage } : { id: editing, ...(can("salarydetail_view", "salarydetail_change") && form.isFieldsTouched(["salary", "percentage"]) ? { salary: salary ?? null, percentage: percentage ?? null } : {}) }) }) });
+      const response = await fetch("/api/staff/write", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...basicValues, position: values.position || "", ...(editing === "new" ? { salary, percentage } : { id: editing, expected: staffOriginal.current, ...(can("salarydetail_view", "salarydetail_change") && form.isFieldsTouched(["salary", "percentage"]) ? { salary: salary ?? null, percentage: percentage ?? null } : {}) }) }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "保存失败");
       message.success("人员信息已保存"); setEditing(null); refresh();
