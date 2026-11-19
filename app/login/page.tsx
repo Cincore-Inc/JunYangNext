@@ -33,7 +33,7 @@ export default function LoginPage() {
           {error && <Alert className="login-error" type="error" showIcon message={error} />}
           <Form layout="vertical" onFinish={login} requiredMark={false} autoComplete="on">
             <Form.Item label="账号" name="username" rules={[{ required: true, whitespace: true, message: "请输入账号" }]}><Input size="large" prefix={<UserOutlined />} placeholder="请输入账号" autoComplete="username" maxLength={30} /></Form.Item>
-            <Form.Item label="密码" name="password" rules={[{ required: true, message: "请输入密码" }]}><Input.Password size="large" prefix={<LockOutlined />} placeholder="请输入密码" autoComplete="current-password" maxLength={30} /></Form.Item>
+            <Form.Item label="密码" name="password" rules={[{ required: true, message: "请输入密码" }]}><Input.Password size="large" prefix={<LockOutlined />} placeholder="请输入密码" autoComplete="current-password" maxLength={128} /></Form.Item>
             <Button block size="large" type="primary" htmlType="submit" loading={loading}>登 录</Button>
           </Form>
         </div>

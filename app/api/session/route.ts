@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
   try {
     const { username, password } = await request.json();
-    if (typeof username !== "string" || typeof password !== "string" || !username.trim() || !password || username.length > 30 || password.length > 30) return NextResponse.json({ error: "请输入账号和密码" }, { status: 400 });
+    if (typeof username !== "string" || typeof password !== "string" || !username.trim() || !password || username.length > 30 || password.length > 128) return NextResponse.json({ error: "请输入账号和密码" }, { status: 400 });
     if (process.env.JUNYANG_AUTH_MODE !== "legacy") {
       const [users] = await getMysql().execute<RowDataPacket[]>("SELECT id, password, is_superuser, is_active FROM auth_user WHERE username = ? LIMIT 1", [username.trim()]);
       const user = users[0];

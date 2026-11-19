@@ -17,6 +17,8 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     const login = (username, password) => fetch(base + '/api/session', { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username, password }) });
     assert.equal((await login('localstaff', 'wrong')).status, 401);
     assert.equal((await login('disabled', 'secret-staff')).status, 401);
+    assert.equal((await login('longpassword', 'x'.repeat(128))).status, 200);
+    assert.equal((await login('longpassword', 'x'.repeat(129))).status, 400);
     const staff = await login('localstaff', 'secret-staff'); assert.equal(staff.status, 200);
     const cookie = staff.headers.get('set-cookie').split(';')[0]; assert.match(cookie, /^junyang_session=v1\./);
     const profile = await (await fetch(base + '/api/session', { headers: { cookie } })).json(); assert.equal(profile.administrator, false); assert.equal(profile.permissions.staff_view, true); assert.equal(profile.permissions.panel_change, true); assert.equal(profile.permissions.finance_view, undefined);
