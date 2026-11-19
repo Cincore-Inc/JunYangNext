@@ -7,7 +7,7 @@ import StringDatePicker from "./string-date-picker";
 import StatusTag from "./status-tag";
 import { useAccess } from "./access";
 
-type Exam = { id: number; staff: number | null; exam_name: string | null; exam_person_name: string | null; exam_date: string | null; exam_status: string | null; cert_date: string | null; cert_status: string | null };
+type Exam = { id: number; staff: number | null; exam_name: string | null; exam_person_name: string | null; exam_date: string | null; exam_date_version: string | null; exam_status: string | null; cert_date: string | null; cert_date_version: string | null; cert_status: string | null };
 async function json<T>(url: string, options?: RequestInit): Promise<T> { const response = await fetch(url, { ...options, cache: "no-store" }); const body = await response.json(); if (!response.ok) throw new Error(body.error || "操作失败"); return body; }
 
 export default function ExamPage({ staffContext }: { staffContext?: { id: number; name: string } } = {}) {

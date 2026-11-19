@@ -10,7 +10,7 @@ const config = {
   salary: { endpoint: "salarydetail", permission: "salarydetail_view", fields: ["id", "staff", "staff_name", "date", "salary", "personal_tax", "persenal_pay", "commission", "deduction", "real_salary"] },
   insurance: { endpoint: "insurancedetail", permission: "insurancedetail_view", fields: ["id", "staff", "staff_name", "date", "insure_pay", "company_pay", "persenal_pay", "persenal_pay_D", "insure_status", "company_pay_date", "persenal_pay_date", "company_payproof", "persenal_payproof"] },
   certificates: { endpoint: "cert", permission: "certificate_view", fields: ["id", "staff", "cert_name", "cert_person_name", "cert_start_date", "cert_end_date", "cert_sure", "cert_next_date", "cert_status"] },
-  exams: { endpoint: "exam", permission: "exam_view", fields: ["id", "staff", "exam_name", "exam_person_name", "exam_date", "exam_status", "cert_date", "cert_status"] },
+  exams: { endpoint: "exam", permission: "exam_view", fields: ["id", "staff", "exam_name", "exam_person_name", "exam_date", "exam_date_version", "exam_status", "cert_date", "cert_date_version", "cert_status"] },
 } as const;
 
 export async function GET(request: NextRequest) {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       salary: "d.id, d.staff_id AS staff, s.name AS staff_name, DATE_FORMAT(d.date, '%Y-%m-%d') AS date, d.salary, d.personal_tax, d.persenal_pay, d.commission, d.deduction, d.real_salary",
       insurance: "d.id, d.staff_id AS staff, s.name AS staff_name, DATE_FORMAT(d.date, '%Y-%m-%d') AS date, d.insure_pay, d.company_pay, d.persenal_pay, d.persenal_pay_D, d.insure_status, DATE_FORMAT(d.company_pay_date, '%Y-%m-%d') AS company_pay_date, DATE_FORMAT(d.persenal_pay_date, '%Y-%m-%d') AS persenal_pay_date, d.company_payproof, d.persenal_payproof",
       certificates: "d.id, d.staff_id AS staff, d.cert_name, d.cert_person_name, DATE_FORMAT(d.cert_start_date, '%Y-%m-%d') AS cert_start_date, DATE_FORMAT(d.cert_end_date, '%Y-%m-%d') AS cert_end_date, d.cert_sure, DATE_FORMAT(d.cert_next_date, '%Y-%m-%d') AS cert_next_date, d.cert_status",
-      exams: "d.id, d.staff_id AS staff, d.exam_name, d.exam_person_name, DATE_FORMAT(d.exam_date, '%Y-%m-%d %H:%i') AS exam_date, d.exam_status, DATE_FORMAT(d.cert_date, '%Y-%m-%d %H:%i') AS cert_date, d.cert_status",
+      exams: "d.id, d.staff_id AS staff, d.exam_name, d.exam_person_name, DATE_FORMAT(d.exam_date, '%Y-%m-%d %H:%i') AS exam_date, DATE_FORMAT(d.exam_date, '%Y-%m-%d %H:%i:%s.%f') AS exam_date_version, d.exam_status, DATE_FORMAT(d.cert_date, '%Y-%m-%d %H:%i') AS cert_date, DATE_FORMAT(d.cert_date, '%Y-%m-%d %H:%i:%s.%f') AS cert_date_version, d.cert_status",
     } as const;
     const conditions = ["1=1"], values: (string | number)[] = [];
     if (kind === "certificates" || kind === "exams") { conditions.push("NOT EXISTS (SELECT 1 FROM junyang_deleted_personnel deleted WHERE deleted.kind = ? AND deleted.record_id = d.id)"); values.push(kind); }

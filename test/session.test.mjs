@@ -269,7 +269,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await saveExam(exam)).status, 200);
     assert.equal((await saveExam({ ...exam, staff_id: 71 })).status, 200);
     assert.equal((await saveExam({ ...exam, staff_id: 72 })).status, 409);
-    const existingExam = { ...exam, id: 2, cert_status: 'OFF', expected: { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19 10:00', exam_status: 'ON', cert_date: null, cert_status: 'OFF', staff: null } };
+    const existingExam = { ...exam, id: 2, cert_status: 'OFF', expected: { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19 10:00', exam_date_version: '2026-11-19 10:00:00.000000', exam_status: 'ON', cert_date: null, cert_date_version: null, cert_status: 'OFF', staff: null } };
     assert.equal((await saveExam(existingExam, { cookie: 'junyang_session=exam-only' })).status, 200);
     assert.equal((await saveExam({ ...existingExam, exam_status: 'OFF' }, { cookie: 'junyang_session=exam-only' })).status, 403);
     assert.equal((await saveExam({ ...existingExam, cert_status: 'ON' }, { cookie: 'junyang_session=exam-only' })).status, 403);
@@ -283,7 +283,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await deleteExam(999)).status, 404);
     assert.equal((await deleteExam(1)).status, 200);
     assert.equal((await deleteExam(1)).status, 409);
-    assert.equal((await saveExam({ ...exam, id: 1, expected: { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19 10:00', exam_status: 'ON', cert_date: null, cert_status: null, staff: 10 } })).status, 409);
+    assert.equal((await saveExam({ ...exam, id: 1, expected: { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19 10:00', exam_date_version: '2026-11-19 10:00:00.000000', exam_status: 'ON', cert_date: null, cert_date_version: null, cert_status: null, staff: 10 } })).status, 409);
     const editUser = (headers, expectedGroups = ["Role"]) => fetch(`${base}/api/users`, { method: "PATCH", headers: { ...headers, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 1, username: "changed", password: "new-password", active: false, groupId: 2, expectedUsername: "before", expectedActive: true, expectedGroups }) });
     const preserveRoles = await fetch(`${base}/api/users`, { method: "PATCH", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 123, username: "changed", password: "new-password", active: false, expectedUsername: "before", expectedActive: true, expectedGroups: ["Role", "Other"] }) });
     assert.equal(preserveRoles.status, 200);
