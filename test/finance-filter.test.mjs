@@ -91,3 +91,13 @@ test('财务日期范围可组合且与旧参数取交集', () => {
   assert.equal(receipt.issueDate.$lt.toISOString(), '2026-11-02T16:00:00.000Z');
   assert.throws(() => financeFilter(new URLSearchParams({ issueFrom: '2026-11-01' }), 'invoices'));
 });
+
+test('财务状态支持多选、未设置和旧版单值', () => {
+  const params = new URLSearchParams({ status: '["已对账","未设置"]', ticketStatus: '["有效","作废","未设置"]' });
+  const filter = financeFilter(params, 'receipts');
+  assert.deepEqual(filter.status, { $in: ['已对账', null, ''] });
+  assert.deepEqual(filter.ticketStatus, { $in: ['有效', '作废', null, ''] });
+  assert.equal(financeFilter(new URLSearchParams({ status: '未对账', ticketStatus: '有效' }), 'invoices').status, '未对账');
+  for (const input of ['[]', '["无效"]', '[1]', '["有效",', '["有效","作废","未交票","已抵扣","未设置","有效"]']) assert.throws(() => financeFilter(new URLSearchParams({ ticketStatus: input }), 'receipts'));
+  assert.throws(() => financeFilter(new URLSearchParams({ ticketStatus: '["有效"]' }), 'transactions'));
+});
