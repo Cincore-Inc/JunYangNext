@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
     const sure = request.nextUrl.searchParams.get("sure") || "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
-    if ((sure && !["ON", "OFF"].includes(sure)) || !["cert_start_date", "cert_end_date", "cert_next_date"].includes(field) || ((from || to) && (!validDate(from) || !validDate(to) || from > to))) return NextResponse.json({ error: "证件筛选条件无效" }, { status: 400 });
+    if ((sure && !["ON", "OFF"].includes(sure)) || !["cert_start_date", "cert_end_date", "cert_next_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "证件筛选条件无效" }, { status: 400 });
     if (certName) params.set("search", certName);
     if (sure) params.set("cert_sure", sure);
-    if (from && to) { params.set("field_date", field); params.set("start_date", from); params.set("end_date", to); }
+    if (from || to) { params.set("field_date", field); if (from) params.set("start_date", from); if (to) params.set("end_date", to); }
   }
   if (kind === "exams") {
     const examStatus = request.nextUrl.searchParams.get("examStatus") || "", certStatus = request.nextUrl.searchParams.get("certStatus") || "";
@@ -57,9 +57,9 @@ export async function GET(request: NextRequest) {
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
     if ([examStatus, certStatus].some((value) => value && !["ON", "OFF"].includes(value))) return NextResponse.json({ error: "考试筛选条件无效" }, { status: 400 });
-    if (!["exam_date", "cert_date"].includes(field) || ((from || to) && (!validDate(from) || !validDate(to) || from > to))) return NextResponse.json({ error: "考试日期范围无效" }, { status: 400 });
+    if (!["exam_date", "cert_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "考试日期范围无效" }, { status: 400 });
     if (examName) params.set("exam_name", examName);
-    if (from && to) { params.set("field_date", field); params.set("start_date", from); params.set("end_date", to); }
+    if (from || to) { params.set("field_date", field); if (from) params.set("start_date", from); if (to) params.set("end_date", to); }
     if (examStatus) params.set("exam_status", examStatus);
     if (certStatus) params.set("cert_status", certStatus);
   }
@@ -82,12 +82,14 @@ export async function GET(request: NextRequest) {
     if (kind === "certificates") {
       like("d.cert_name", params.get("search") || "");
       for (const field of ["cert_status", "cert_sure"] as const) if (params.has(field)) { conditions.push(`d.${field} = ?`); values.push(params.get(field)!); }
-      if (params.has("start_date")) { const field = params.get("field_date")!; conditions.push(`d.${field} >= ? AND d.${field} <= ?`); values.push(params.get("start_date")!, params.get("end_date")!); }
+      if (params.has("start_date")) { conditions.push(`d.${params.get("field_date")} >= ?`); values.push(params.get("start_date")!); }
+      if (params.has("end_date")) { conditions.push(`d.${params.get("field_date")} <= ?`); values.push(params.get("end_date")!); }
     }
     if (kind === "exams") {
       like("d.exam_name", params.get("exam_name") || "");
       for (const field of ["exam_status", "cert_status"] as const) if (params.has(field)) { conditions.push(`d.${field} = ?`); values.push(params.get(field)!); }
-      if (params.has("start_date")) { const field = params.get("field_date")!; conditions.push(`d.${field} >= ? AND d.${field} < DATE_ADD(?, INTERVAL 1 DAY)`); values.push(params.get("start_date")!, params.get("end_date")!); }
+      if (params.has("start_date")) { conditions.push(`d.${params.get("field_date")} >= ?`); values.push(params.get("start_date")!); }
+      if (params.has("end_date")) { conditions.push(`d.${params.get("field_date")} < DATE_ADD(?, INTERVAL 1 DAY)`); values.push(params.get("end_date")!); }
     }
     const db = getMysql(), table = tables[kind], where = conditions.join(" AND "), join = "LEFT JOIN staff_staff s ON s.id = d.staff_id";
     const [counts] = await db.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM ${table} d ${join} WHERE ${where}`, values);
