@@ -121,6 +121,8 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await fetch(`${base}/api/staff?from=2026-03-01&to=2026-02-01`, { headers: auth })).status, 400);
     assert.equal((await fetch(`${base}/api/staff?insurance=invalid`, { headers: auth })).status, 400);
     assert.equal((await fetch(`${base}/api/staff?insurance=FULL&from=2021-01-01&to=2022-12-31`, { headers: auth })).status, 200);
+    for (const [query, dateParam] of [['StaffFrom','from'],['StaffTo','to']]) { const params = new URLSearchParams({q:query,status:'__unset__',insurance:'__unset__',[dateParam]:'2026-11-19'}); const result = await fetch(`${base}/api/staff?${params}`, {headers:auth}); assert.equal(result.status,200); assert.equal((await result.json()).items[0].id,52); }
+    assert.equal((await fetch(`${base}/api/staff?insurance=__unset__`, { headers: { cookie: limitedCookie } })).status,403);
     const staff = await fetch(`${base}/api/staff`, { headers: auth });
     assert.equal(staff.status, 200);
     const staffResult = await staff.json();
