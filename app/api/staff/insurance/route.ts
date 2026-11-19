@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest) {
   if (denied) return denied;
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
-  if (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object" || !methods.includes(body.insure_pay) || !(body.expected.insure_pay === null || methods.includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保设置无效" }, { status: 400 });
+  if (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object" || !(body.insure_pay === null || methods.includes(body.insure_pay)) || !(body.expected.insure_pay === null || methods.includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保设置无效" }, { status: 400 });
   const amounts: (number | null)[] = [];
   for (const field of fields) {
     if (!(body.expected[field] === null || (typeof body.expected[field] === "number" && Number.isFinite(body.expected[field])))) return NextResponse.json({ error: "记录版本无效" }, { status: 400 });

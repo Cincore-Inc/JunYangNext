@@ -156,6 +156,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await fetch(`${base}/api/staff/insurance?id=71`, { headers: { cookie: limitedCookie } })).status, 403);
     const insuranceSettings = { id: 71, insure_pay: 'HALF-D', company_pay: '120', persenal_pay: '50', persenal_pay_D: '30', expected: { insure_pay: 'HALF', company_pay: 100, persenal_pay: 50, persenal_pay_D: null } };
     const updateStaffInsurance = (payload, headers = auth) => fetch(`${base}/api/staff/insurance`, { method: 'PATCH', headers: { ...headers, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    assert.equal((await updateStaffInsurance({ id: 72, insure_pay: null, company_pay: '120', persenal_pay: null, persenal_pay_D: null, expected: { insure_pay: null, company_pay: 100, persenal_pay: null, persenal_pay_D: null } })).status, 200);
     assert.equal((await updateStaffInsurance(insuranceSettings, { cookie: limitedCookie })).status, 403);
     assert.equal((await updateStaffInsurance({ ...insuranceSettings, company_pay: '-1' })).status, 400);
     assert.equal((await updateStaffInsurance({ ...insuranceSettings, expected: { ...insuranceSettings.expected, company_pay: 90 } })).status, 409);
