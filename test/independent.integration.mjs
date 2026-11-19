@@ -14,7 +14,7 @@ async function freePort() {
   return port;
 }
 
-test('旧服务关闭时财务筛选和附件仍可使用', { timeout: 120000 }, async () => {
+test('旧服务关闭时项目、财务筛选和附件仍可使用', { timeout: 120000 }, async () => {
   const database = await MongoMemoryReplSet.create({ binary: { version: '7.0.24' }, replSet: { count: 1, ip: '127.0.0.1' } });
   const client = await new MongoClient(database.getUri()).connect();
   const base = `http://127.0.0.1:${await freePort()}`;
@@ -28,6 +28,19 @@ test('旧服务关闭时财务筛选和附件仍可使用', { timeout: 120000 },
     const login = await fetch(`${base}/api/session`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username: 'localadmin', password: 'secret-admin' }) });
     assert.equal(login.status, 200);
     const cookie = login.headers.get('set-cookie').split(';')[0];
+    const createdProject = await fetch(`${base}/api/projects`, { method: 'POST', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ name: '独立测试项目' }) });
+    assert.equal(createdProject.status, 200); const createdId = (await createdProject.json()).id;
+    const projectCollection = client.db('junyang-projects').collection('projects');
+    const storedProject = await projectCollection.findOne({ _id: new ObjectId(createdId) });
+    for (const kind of ['transactions', 'receipts', 'invoices']) await client.db('junyang-finance').collection(kind).insertOne({ project: { value: createdId, label: '独立测试项目' } });
+    const projectData = { name: '更新测试项目', address: '', phone: '', lastEditedBy: '', bidMethod: '', bidStatus: '', bidAddress: '', caller: '', callerContact: '', callerPhone: '', callerBank: '', callerBankAccount: '', winnerOther: '', projectType: '', taxDeductRatio: '', materialRatio: '', laborRatio: '', description: '', notes: '', todo: '', fileNote: '', bidders: [], bids: [], tags: [], bidLimit: 0, winnerPrice: 0, managementFee: 0, tax: 0, bidStartTime: null, projectStart: null, projectEnd: null, requireOriginalFiles: null, projectNumber: null, status: '', updatedAt: storedProject.updatedAt.toISOString() };
+    const editedProject = await fetch(`${base}/api/projects/${createdId}`, { method: 'PATCH', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(projectData) });
+    assert.equal(editedProject.status, 200);
+    for (const kind of ['transactions', 'receipts', 'invoices']) assert.equal((await client.db('junyang-finance').collection(kind).findOne({ 'project.value': createdId })).project.label, '更新测试项目');
+    await projectCollection.updateOne({ _id: new ObjectId(createdId) }, { $set: { name: '手动同步测试' } });
+    assert.equal((await fetch(`${base}/api/projects/${createdId}/sync-name`, { method: 'POST', headers: { origin: base } })).status, 401);
+    const syncedProject = await fetch(`${base}/api/projects/${createdId}/sync-name`, { method: 'POST', headers: { cookie, origin: base } }); assert.equal(syncedProject.status, 200);
+    for (const kind of ['transactions', 'receipts', 'invoices']) assert.equal((await client.db('junyang-finance').collection(kind).findOne({ 'project.value': createdId })).project.label, '手动同步测试');
     const projectId = new ObjectId();
     await client.db('junyang-projects').collection('projects').insertOne({ _id: projectId, callerFiles: [] });
     for (const kind of ['transactions', 'receipts', 'invoices']) {
