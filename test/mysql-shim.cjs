@@ -21,7 +21,7 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('SELECT record_id FROM junyang_deleted_personnel')) { const fixed = sql.includes("'certificates'") ? 'certificates' : sql.includes("'images'") ? 'images' : null; const kind = fixed || params[0]; const ids = fixed ? params : [params[1]]; return [ids.filter(id => deletedPersonnel.has(`${kind}:${id}`)).map(id => ({record_id:id}))]; }
       if (sql.startsWith('INSERT INTO junyang_deleted_personnel')) { const fixed = sql.includes("'certificates'") ? 'certificates' : sql.includes("'images'") ? 'images' : null; const kind = fixed || params[0]; const id = fixed ? params[0] : params[1]; deletedPersonnel.add(`${kind}:${id}`); return [{affectedRows:1}]; }
       if (sql.startsWith('SELECT id FROM company_tags')) return [[{id: 1}]];
-      if (sql.startsWith('SELECT id, cert_status')) return [[params[0] === 2 ? { id: 2, cert_status: 'ON_HALF', next_date: null } : { id: 1, cert_status: 'OFF', next_date: null }]];
+      if (sql.startsWith('SELECT id, cert_status')) return [[params[0] === 3 ? { id: 3, cert_status: '', next_date: null } : params[0] === 2 ? { id: 2, cert_status: 'ON_HALF', next_date: null } : { id: 1, cert_status: 'OFF', next_date: null }]];
       if (sql.startsWith('SELECT id, itemmessage')) return [[{ id: 1, itemmessage: 'old' }]];
       if (sql.startsWith('SELECT id, username, is_active FROM auth_user')) return [[{ id: params[0], username: 'before', is_active: 1 }]];
       if (sql.startsWith('SELECT g.id, g.name FROM auth_user_groups')) return [params[0] === 123 ? [{ id: 2, name: 'Role' }, { id: 4, name: 'Other' }] : [{ id: 2, name: 'Role' }]];

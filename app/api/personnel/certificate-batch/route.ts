@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
-  if (!["update", "delete"].includes(body.action) || !Array.isArray(body.records) || !body.records.length || body.records.length > 100 || !body.records.every((row: { id?: unknown; status?: unknown; nextDate?: unknown }) => Number.isSafeInteger(row.id) && Number(row.id) > 0 && (row.status === null || isCertificateStatus(row.status)) && (row.nextDate === null || (typeof row.nextDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.nextDate))))) return NextResponse.json({ error: "所选记录无效" }, { status: 400 });
+  if (!["update", "delete"].includes(body.action) || !Array.isArray(body.records) || !body.records.length || body.records.length > 100 || !body.records.every((row: { id?: unknown; status?: unknown; nextDate?: unknown }) => Number.isSafeInteger(row.id) && Number(row.id) > 0 && (row.status === null || row.status === "" || isCertificateStatus(row.status)) && (row.nextDate === null || (typeof row.nextDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.nextDate))))) return NextResponse.json({ error: "所选记录无效" }, { status: 400 });
   const ids = body.records.map((row: { id: number }) => row.id);
   if (new Set(ids).size !== ids.length) return NextResponse.json({ error: "证件重复" }, { status: 400 });
   if (body.action === "update") {
