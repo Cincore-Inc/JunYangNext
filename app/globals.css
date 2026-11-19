@@ -34,12 +34,14 @@
 .staff-items{display:flex;flex-direction:column;gap:8px;margin-bottom:24px}.staff-items label{display:block}.staff-items .table-actions{margin:8px 0 0}
 .file-categories{display:grid;grid-template-columns:1fr 1fr;gap:24px}.file-categories h3{font-size:15px;margin:0 0 16px}.file-category-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0}.file-category-row .ant-btn:first-child{max-width:calc(100% - 60px);overflow:hidden;text-overflow:ellipsis}@media(max-width:480px){.file-categories{grid-template-columns:1fr}}
 
-/* Use wide desktop space for dense filters and tables without stretching indefinitely on 4K screens. */
-.dashboard{width:100%;max-width:2400px}
+.dashboard{width:100%;max-width:none;min-width:0}
+.project-info-editor .ant-form-item{margin-bottom:0}
+.project-info-editor .ant-input-number,.project-info-editor .ant-picker,.project-info-editor .ant-select{width:100%}
+.invoice-create-upload{margin-top:16px}.invoice-create-upload-label{margin-bottom:8px}
 
 .project-inline-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}.project-inline-edit-wide{grid-column:1/-1}.project-inline-edit .ant-form-item{margin-bottom:16px}@media(max-width:720px){.project-inline-edit-grid{grid-template-columns:1fr}}
 
-/* Let data tables use the full panel width; explicit column widths still provide their overflow floor. */
-.panel .ant-table-wrapper,.panel .ant-table-container,.panel .ant-table-content{width:100%}.panel .ant-table-content>table{width:100%!important;min-width:100%}
+/* Keep Ant Design's scroll width so wide tables do not squeeze their columns. */
+.panel .ant-table-wrapper,.panel .ant-table-container,.panel .ant-table-content{width:100%}.panel .ant-table-content>table{min-width:100%}
 
 .inline-editor{margin:0 0 16px;padding:16px;border:1px solid #e6ebf0;border-radius:8px;background:#fafcff}.inline-editor h3{margin:0 0 14px;font-size:16px}.inline-editor-actions{display:flex;gap:8px;justify-content:flex-end}.inline-editor .ant-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}.inline-editor .ant-form-item{margin-bottom:14px}.inline-editor .ant-form-item:has(textarea),.inline-editor .ant-form-item:has(.ant-select-selection-overflow){grid-column:1/-1}@media(max-width:720px){.inline-editor .ant-form{grid-template-columns:1fr}}

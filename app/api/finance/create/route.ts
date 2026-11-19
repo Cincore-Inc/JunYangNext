@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     }
     const projectNumber = body.projectNumber !== undefined ? body.projectNumber : refs.projectNumber;
     const record = isTransaction ? { ...common, ...extra, ...(day ? { transactionDate: day } : {}), ...(body.type?.trim() ? { transactionType: body.type.trim() } : {}), title: (body.title || "").trim(), amount: Long.fromNumber(amount!), ...(amount === 0 ? {} : { direction: amount! > 0 ? "income" : "outgoing" }) } : { ...common, ...invoiceFields, ...(index != null ? { index } : {}), ...(projectNumber !== undefined ? { projectNumber } : {}), ...(day ? { date: day } : {}), ...(body.number?.trim() ? { [body.kind === "receipts" ? "receiptId" : "invoiceId"]: body.number.trim() } : {}), [body.kind === "receipts" ? "issuer" : "buyer"]: (body.party || "").trim(), ticketClass: (body.ticketClass || "").trim(), ticketStatus: body.ticketStatus === "未设置" ? null : body.ticketStatus || "有效", amountWithoutTax: Long.fromNumber(net!), tax: Long.fromNumber(tax!), amount: Long.fromNumber(net! + tax!), taxRate: (net === 0 ? "0" : (tax! / net! * 100).toFixed(2)) + "%", ...(body.kind === "receipts" ? { receipts: [], otherFiles: [], transferRecords: [] } : body.kind === "invoices" ? { invoices: [] } : {}) };
-    await collection.insertOne(record, { maxTimeMS: 10000 });
-    return NextResponse.json({ ok: true });
+    const inserted = await collection.insertOne(record, { maxTimeMS: 10000 });
+    return NextResponse.json({ ok: true, id: inserted.insertedId.toString() });
   } catch (error) {
     if ((error as { code?: number }).code === 11000) return NextResponse.json({ error: "发票号码已存在" }, { status: 409 });
     return NextResponse.json({ error: "保存结果未知，请刷新列表确认后再试" }, { status: 503 });
