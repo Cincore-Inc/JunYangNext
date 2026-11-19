@@ -25,6 +25,12 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     }
     const manager = await login('localadmin', 'secret-admin'); assert.equal(manager.status, 200);
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
+    const insuranceEdit = {kind:'insurance',id:74,company_pay:'',persenal_pay:'12.34',persenal_pay_D:'',insure_pay:null,insure_status:null,company_pay_date:'2026-11-19',expected:{company_pay:null,persenal_pay:12.34,persenal_pay_D:null,insure_pay:null,insure_status:null,company_pay_date:null}};
+    const editInsurance = (body) => fetch(base+'/api/personnel', {method:'PATCH',headers:{cookie:managerCookie,origin:base,'content-type':'application/json'},body:JSON.stringify(body)});
+    assert.equal((await editInsurance(insuranceEdit)).status,200);
+    assert.equal((await editInsurance({...insuranceEdit, company_pay:'', expected:{...insuranceEdit.expected,company_pay:10}})).status,400);
+    assert.equal((await editInsurance({...insuranceEdit, insure_pay:'invalid'})).status,400);
+    assert.equal((await editInsurance({...insuranceEdit,id:999})).status,409);
     assert.equal((await (await fetch(base + '/api/session', { headers: { cookie: managerCookie } })).json()).administrator, true);
     assert.equal((await fetch(base + '/api/groups?catalog=1', { headers: { cookie: managerCookie } })).status, 200);
     const exam = (values) => fetch(base + '/api/personnel/exam', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ exam_name: '', exam_person_name: '', exam_date: '', exam_status: '', cert_date: '', cert_status: '', ...values }) });

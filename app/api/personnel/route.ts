@@ -110,14 +110,15 @@ export async function PATCH(request: NextRequest) {
   const denied = await requirePermission(request, permissions);
   if (denied) return denied;
   const fields = body.kind === "salary" ? salaryFields : ["company_pay", "persenal_pay", "persenal_pay_D"];
-  const amounts: number[] = [];
+  const amounts: (number | null)[] = [];
   for (const field of fields) {
+    if (body.expected[field] !== null && (typeof body.expected[field] !== "number" || !Number.isFinite(body.expected[field]))) return NextResponse.json({ error: "记录版本无效" }, { status: 400 });
+    if (body.kind === "insurance" && body[field] === "" && body.expected[field] === null) { amounts.push(null); continue; }
     const value = parseMoney(body[field]);
     if (value === null || value < 0 || value > 100000000000) return NextResponse.json({ error: "请输入有效金额" }, { status: 400 });
-    if (body.expected[field] !== null && (typeof body.expected[field] !== "number" || !Number.isFinite(body.expected[field]))) return NextResponse.json({ error: "记录版本无效" }, { status: 400 });
     amounts.push(value / 100);
   }
-  if (body.kind === "insurance" && (!["ON", "OFF"].includes(body.insure_status) || !["FULL", "NULL", "HALF", "HALF-D"].includes(body.insure_pay) || !["ON", "OFF", null].includes(body.expected.insure_status) || !["FULL", "NULL", "HALF", "HALF-D", null].includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保状态无效" }, { status: 400 });
+  if (body.kind === "insurance" && (!["ON", "OFF", null].includes(body.insure_status) || !["FULL", "NULL", "HALF", "HALF-D", null].includes(body.insure_pay) || !["ON", "OFF", null].includes(body.expected.insure_status) || !["FULL", "NULL", "HALF", "HALF-D", null].includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保状态无效" }, { status: 400 });
   const dateFields = body.kind === "insurance" ? ["company_pay_date", "persenal_pay_date"].filter((field) => body[field] !== undefined) : [];
   const validDate = (value: unknown) => value === null || value === "" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value);
   if (dateFields.some((field) => !validDate(body[field]) || !Object.hasOwn(body.expected, field) || !validDate(body.expected[field]))) return NextResponse.json({ error: "缴纳日期无效" }, { status: 400 });
