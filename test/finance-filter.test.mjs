@@ -75,6 +75,14 @@ test('未设置状态包含空值及缺失记录', () => {
   assert.deepEqual(filter.ticketStatus, { $in: [null, ''] });
 });
 
+test('票据分类可组合未设置和其他选项', () => {
+  const filter = financeFilter(new URLSearchParams({ type: '["专票","__unset__"]', receiptType: '["__unset__","工程票"]', purpose: '["__unset__","材料成本"]' }), 'receipts');
+  assert.deepEqual(filter.ticketClass, { $in: ['专票', null, ''] });
+  assert.deepEqual(filter.receiptType, { $in: [null, '', '工程票'] });
+  assert.deepEqual(filter.purpose, { $in: [null, '', '材料成本'] });
+  assert.deepEqual(financeFilter(new URLSearchParams({ taxCode: '["__unset__"]' }), 'invoices').taxCode, { $in: [null, ''] });
+});
+
 test('财务日期范围可组合且与旧参数取交集', () => {
   const filter = financeFilter(new URLSearchParams({ dateFrom: '2026-10-01', dateTo: '2026-10-31', deductFrom: '2026-11-01', deductTo: '2026-11-30', verifiedFrom: '2026-12-01', submitTo: '2027-01-01', dateField: 'date', from: '2026-10-10', to: '2026-11-10' }), 'receipts');
   assert.equal(filter.date.$gte.toISOString(), '2026-10-09T16:00:00.000Z');
