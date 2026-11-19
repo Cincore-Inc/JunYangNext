@@ -78,6 +78,23 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
       assert.equal(copy.projectNumber, 77); assert.equal(Number(copy.amount), 0); assert.equal(copy.status, '未对账');
     }
     const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const receiptCollection = client.db('junyang-finance').collection('receipts');
+    const verifiedReceipt = new ObjectId(), transferId = new ObjectId();
+    await receiptCollection.insertOne({ _id: verifiedReceipt, status: '已对账', updatedAt: new Date('2026-11-01T00:00:00Z'), transferRecords: [{ _id: transferId, amount: 100, note: null }] });
+    let receipt = await receiptCollection.findOne({ _id: verifiedReceipt });
+    const transfer = { receiptId: String(verifiedReceipt), id: String(transferId), action: 'edit', updatedAt: receipt.updatedAt.toISOString(), date: '', amount: '1.25', note: '' };
+    assert.equal((await writeFinance('transfers', 'POST', transfer)).status, 200);
+    receipt = await receiptCollection.findOne({ _id: verifiedReceipt });
+    assert.equal(Number(receipt.transferRecords[0].amount), 125); assert.equal(receipt.transferRecords[0].note, null);
+    for (const replace of [false, true]) {
+      const form = new FormData(); form.set('kind', 'receipts'); form.set('id', String(verifiedReceipt)); form.set('field', 'transferRecords'); form.set('transferId', String(transferId)); if (replace) form.set('replace', '1'); form.set('file', new Blob([bytes], { type: 'image/png' }), replace ? 'new.png' : 'original.png');
+      assert.equal((await fetch(`${base}/api/attachments/upload`, { method: 'POST', headers: { cookie, origin: base }, body: form })).status, 200);
+    }
+    receipt = await receiptCollection.findOne({ _id: verifiedReceipt });
+    assert.ok(receipt.transferRecords[0].file); assert.equal(receipt.archivedAttachments.length, 1);
+    assert.equal((await writeFinance('transfers', 'POST', { ...transfer, action: 'delete', updatedAt: receipt.updatedAt.toISOString() })).status, 200);
+    receipt = await receiptCollection.findOne({ _id: verifiedReceipt });
+    assert.equal(receipt.status, '已对账'); assert.equal(receipt.transferRecords.length, 0); assert.equal(receipt.deletedTransferRecords.length, 1);
     for (const kind of ['projects', 'files', 'receipts', 'transactions']) {
       let id = projectId;
       if (kind === 'receipts' || kind === 'transactions') { id = new ObjectId(); await client.db('junyang-finance').collection(kind).insertOne({ _id: id }); }
