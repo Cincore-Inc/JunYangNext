@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (typeof body.receiptId !== "string" || !/^[a-f\d]{24}$/i.test(body.receiptId) || !version || Number.isNaN(version.getTime()) || !["create", "edit", "delete"].includes(body.action) || (body.action !== "create" && (typeof body.id !== "string" || !/^[a-f\d]{24}$/i.test(body.id)))) return NextResponse.json({ error: "参数无效" }, { status: 400 });
   const amount = body.action === "delete" ? null : parseMoney(body.amount);
   const day = body.action === "delete" ? null : typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? new Date(`${body.date}T00:00:00+08:00`) : null;
-  if (body.action !== "delete" && (amount === null || (body.date !== "" && (!day || Number.isNaN(day.getTime()) || new Date(day.getTime() + 8 * 3600000).toISOString().slice(0, 10) !== body.date)) || (body.action === "create" && !day) || typeof body.note !== "string" || body.note.length > 500)) return NextResponse.json({ error: "请正确填写转账记录" }, { status: 400 });
+  if (body.action !== "delete" && (amount === null || (body.date !== "" && (!day || Number.isNaN(day.getTime()) || new Date(day.getTime() + 8 * 3600000).toISOString().slice(0, 10) !== body.date)) || typeof body.note !== "string" || body.note.length > 500)) return NextResponse.json({ error: "请正确填写转账记录" }, { status: 400 });
   try {
     const collection = (await getMongo()).db("junyang-finance").collection("receipts");
     const filter = { _id: new ObjectId(body.receiptId), updatedAt: version, status: { $ne: "已对账" } };
@@ -45,9 +45,8 @@ export async function POST(request: NextRequest) {
       if (body.action === "delete") deletedRecord = { ...records.splice(index, 1)[0], deletedAt: new Date() };
       else {
         const original = records[index];
-        if (!day && original.date != null) return NextResponse.json({ error: "请填写转账日期" }, { status: 400 });
         const oldDate = original.date instanceof Date ? new Date(original.date.getTime() + 8 * 3600000).toISOString().slice(0, 10) : "";
-        records[index] = { ...original, amount: Long.fromNumber(amount!), ...(day ? { date: oldDate === body.date ? original.date : day } : {}), note: body.note.trim() };
+        records[index] = { ...original, amount: Long.fromNumber(amount!), ...(day ? { date: oldDate === body.date ? original.date : day } : original.date != null ? { date: null } : {}), note: body.note.trim() };
       }
     }
     const result = await collection.updateOne(filter, { $set: { transferRecords: records, updatedAt: new Date(), ...(deletedRecord ? { deletedTransferRecords: [...(row.deletedTransferRecords || []), deletedRecord] } : {}) } }, { maxTimeMS: 10000 });
