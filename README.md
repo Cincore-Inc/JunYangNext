@@ -39,3 +39,7 @@ npm run dev
 运行 `npm run build` 后可用 `npm run test:integration` 检查旧 Core 不可用时的项目新增、改名和同步、财务筛选与新增编辑、票据复制的保存接口及附件上传、预览、下载。测试使用临时 MongoDB、模拟 MySQL 和 OSS，不连接生产数据；首次运行可能需要下载 MongoDB 测试程序。它不能替代真实存储及浏览器验收。
 
 财务列表及项目交易明细查询可运行 `node scripts/ensure-finance-indexes.mjs` 创建所需的 MongoDB 索引；脚本会检查已有同键索引，可重复执行。
+
+## 发布
+
+仓库提供 GitHub Actions 的 CI 和人工确认的生产发布工作流。部署不会保存任何生产密钥在仓库中，服务器准备、GitHub Environment 和 Secrets 配置见 [docs/deployment-github-actions.md](docs/deployment-github-actions.md)。在服务器准备完成并设置好 Secrets 前，`Deploy production` 不会真正执行部署。
