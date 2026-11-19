@@ -1,9 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: junyang-next:${JUNYANG_IMAGE_TAG:-latest}
+    image: ghcr.io/cincore-inc/junyangnext:${JUNYANG_IMAGE_TAG:-latest}
     container_name: junyang-next
     restart: unless-stopped
     env_file:

@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: production-deploy
@@ -26,10 +27,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
+    env:
+      IMAGE_NAME: ghcr.io/cincore-inc/junyangnext
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.sha }}
+
+      - id: revision
+        name: Resolve deployed revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -43,17 +50,23 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build deploy image
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish deploy image
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
-          tags: junyang-next:${{ github.sha }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.revision.outputs.sha }}
+            ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Package deploy image
-        run: docker save "junyang-next:${{ github.sha }}" | gzip > /tmp/junyang-next-image.tar.gz
 
       - name: Configure SSH
         env:
@@ -68,31 +81,27 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Transfer deploy image
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_REVISION: ${{ github.sha }}
-        run: |
-          DEPLOY_PORT="${DEPLOY_PORT:-22}"
-          scp -i ~/.ssh/id_deploy -P "$DEPLOY_PORT" -o BatchMode=yes /tmp/junyang-next-image.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
-
       - name: Update application on server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          DEPLOY_REVISION: ${{ github.sha }}
+          DEPLOY_REVISION: ${{ steps.revision.outputs.sha }}
+          IMAGE_NAME: ghcr.io/cincore-inc/junyangnext
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
           test -n "$DEPLOY_HOST"
           test -n "$DEPLOY_USER"
           test -n "$DEPLOY_PATH"
+          test -n "$GHCR_USERNAME"
+          test -n "$GHCR_PULL_TOKEN"
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          GHCR_PULL_TOKEN_B64="$(printf '%s' "$GHCR_PULL_TOKEN" | base64 | tr -d '\n')"
           ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_REVISION='$DEPLOY_REVISION' bash -s" <<'REMOTE'
+            "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_REVISION='$DEPLOY_REVISION' IMAGE_NAME='$IMAGE_NAME' GHCR_USERNAME='$GHCR_USERNAME' GHCR_PULL_TOKEN_B64='$GHCR_PULL_TOKEN_B64' bash -s" <<'REMOTE'
           set -euo pipefail
           test -d "$DEPLOY_PATH/.git"
           cd "$DEPLOY_PATH"
@@ -102,11 +111,11 @@ jobs:
             sleep "$((attempt * 3))"
           done
           git checkout --detach --force "$DEPLOY_REVISION"
-          sudo docker load --input "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
-          sudo docker tag "junyang-next:$DEPLOY_REVISION" junyang-next:latest
-          sudo docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
+          printf '%s' "$GHCR_PULL_TOKEN_B64" | base64 -d | sudo docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+          sudo docker pull "$IMAGE_NAME:$DEPLOY_REVISION"
+          JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" sudo docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
           sleep 2
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 2 http://127.0.0.1:8010/login >/dev/null
-          rm -f "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
+          sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
           REMOTE
 
