@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 3100",
     "lint": "eslint",
-    "check:migration": "node scripts/check-migration-readiness.mjs"
+    "check:migration": "node scripts/check-migration-readiness.mjs",
+    "test:integration": "node --test test/independent.integration.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
@@ -31,6 +32,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "mongodb-memory-server-core": "^10.4.3",
     "typescript": "^5"
   },
   "overrides": {
