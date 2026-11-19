@@ -1,0 +1,12 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: junyang-next:${JUNYANG_IMAGE_TAG:-latest}
+    container_name: junyang-next
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    ports:
+      - "127.0.0.1:8010:3100"

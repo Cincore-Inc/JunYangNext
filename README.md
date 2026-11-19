@@ -43,3 +43,5 @@ npm run dev
 ## 发布
 
 仓库提供 GitHub Actions 的 CI 和人工确认的生产发布工作流。部署不会保存任何生产密钥在仓库中，服务器准备、GitHub Environment 和 Secrets 配置见 [docs/deployment-github-actions.md](docs/deployment-github-actions.md)。在服务器准备完成并设置好 Secrets 前，`Deploy production` 不会真正执行部署。
+
+生产容器使用 [Dockerfile](Dockerfile) 与 [docker-compose.production.yml](docker-compose.production.yml)，只发布到服务器回环地址 `127.0.0.1:8010`，由 Nginx 承接公网 HTTPS。容器环境从服务器本地的 `.env.local` 读取，绝不提交到仓库。

@@ -25,6 +25,7 @@
 .idea/
 scripts/activate-admin002.sh
 *.pem
+.env.production.local
 
 # debug
 npm-debug.log*

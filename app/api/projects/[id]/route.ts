@@ -1,10 +1,12 @@
-import { requirePermission } from "@/lib/session";
+import { requireAdministrator, requirePermission } from "@/lib/session";
 import { attachmentRefs } from "@/lib/attachments";
 import { getMongo } from "@/lib/db";
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { projectArrays, projectTexts, projectUpdate } from "@/lib/project-fields";
 import { pinyin } from "pinyin-pro";
+import { sameOrigin } from "@/lib/write-request";
+import { deletionActor } from "@/lib/personnel-soft-delete";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!ObjectId.isValid(id) || !/^[a-f\d]{24}$/i.test(id)) return NextResponse.json({ error: "项目编号无效" }, { status: 400 });
   try {
     const client = await getMongo();
-    const project = await client.db("junyang-projects").collection("projects").findOne({ _id: new ObjectId(id) }, { projection: { name: 1, projectNumber: 1, projectStatus: 1, address: 1, caller: 1, createdAt: 1, updatedAt: 1, otherFiles: 1, callerFiles: 1, bidderFiles: 1, winnerNotifications: 1, constructionContracts: 1, jobContracts: 1, completeVerifications: 1, fileNote: 1, lastEditedBy: 1, callerContact: 1, callerPhone: 1, callerBank: 1, callerBankAccount: 1, winnerOther: 1, managementFee: 1, tax: 1, taxDeductRatio: 1, materialRatio: 1, laborRatio: 1, projectStart: 1, projectEnd: 1, todo: 1, bidders: 1, phone: 1, bidMethod: 1, bidStatus: 1, bidAddress: 1, bidStartTime: 1, bidLimit: 1, requireOriginalFiles: 1, bids: 1, bidderCompanies: 1, winner: 1, winnerPrice: 1, projectType: 1, description: 1, notes: 1, tags: 1 } });
+    const project = await client.db("junyang-projects").collection("projects").findOne({ _id: new ObjectId(id), deletedAt: null }, { projection: { name: 1, projectNumber: 1, projectStatus: 1, address: 1, caller: 1, createdAt: 1, updatedAt: 1, otherFiles: 1, callerFiles: 1, bidderFiles: 1, winnerNotifications: 1, constructionContracts: 1, jobContracts: 1, completeVerifications: 1, fileNote: 1, lastEditedBy: 1, callerContact: 1, callerPhone: 1, callerBank: 1, callerBankAccount: 1, winnerOther: 1, managementFee: 1, tax: 1, taxDeductRatio: 1, materialRatio: 1, laborRatio: 1, projectStart: 1, projectEnd: 1, todo: 1, bidders: 1, phone: 1, bidMethod: 1, bidStatus: 1, bidAddress: 1, bidStartTime: 1, bidLimit: 1, requireOriginalFiles: 1, bids: 1, bidderCompanies: 1, winner: 1, winnerPrice: 1, projectType: 1, description: 1, notes: 1, tags: 1 } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
     const finance = client.db("junyang-finance");
     const query = new URL(request.url).searchParams;
@@ -34,7 +36,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { sameOrigin } = await import("@/lib/write-request");
   if (!sameOrigin(request)) return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
   const denied = await requirePermission(request, ["project_detail"]); if (denied) return denied;
   const { id } = await params;
@@ -46,7 +47,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try { values = projectUpdate(body); } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "项目字段无效" }, { status: 400 }); }
   try {
     const client = await getMongo(); const projects = client.db("junyang-projects").collection("projects");
-    const current = await projects.findOne({ _id: new ObjectId(id), updatedAt }, { projection: Object.fromEntries(["name", ...Object.keys(values)].map((key) => [key, 1])) });
+    const current = await projects.findOne({ _id: new ObjectId(id), updatedAt, deletedAt: null }, { projection: Object.fromEntries(["name", ...Object.keys(values)].map((key) => [key, 1])) });
     if (!current) return NextResponse.json({ error: "项目已变化或不存在，请刷新后重试" }, { status: 409 });
     for (const key of projectTexts) {
       if (body[key] === current[key]) values[key] = current[key];
@@ -62,17 +63,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       values.namePY = pinyin(name, { pattern: "first" }).replace(/\s/g, "");
       const session = client.startSession();
       try { await session.withTransaction(async () => {
-        const updated = await projects.updateOne({ _id: new ObjectId(id), updatedAt }, { $set: { ...values, updatedAt: new Date() } }, { session });
+        const updated = await projects.updateOne({ _id: new ObjectId(id), updatedAt, deletedAt: null }, { $set: { ...values, updatedAt: new Date() } }, { session });
         if (!updated.matchedCount) throw new Error("conflict");
         for (const kind of ["transactions", "receipts", "invoices"]) await client.db("junyang-finance").collection(kind).updateMany({ "project.value": id }, { $set: { "project.label": name } }, { session });
       }); } finally { await session.endSession(); }
     } else {
-      const result = await projects.updateOne({ _id: new ObjectId(id), updatedAt }, { $set: { ...values, updatedAt: new Date() } }, { maxTimeMS: 10000 });
+      const result = await projects.updateOne({ _id: new ObjectId(id), updatedAt, deletedAt: null }, { $set: { ...values, updatedAt: new Date() } }, { maxTimeMS: 10000 });
       if (!result.matchedCount) return NextResponse.json({ error: "项目已变化或不存在，请刷新后重试" }, { status: 409 });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error && error.message === "conflict") return NextResponse.json({ error: "项目已变化，请刷新后重试" }, { status: 409 });
     return NextResponse.json({ error: "保存失败，请刷新后重试；项目名称和财务关联不会部分更新" }, { status: 503 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!sameOrigin(request)) return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
+  const denied = await requireAdministrator(request);
+  if (denied) return denied;
+  const { id } = await params;
+  if (!/^[a-f\d]{24}$/i.test(id)) return NextResponse.json({ error: "项目编号无效" }, { status: 400 });
+  let body: { updatedAt?: unknown };
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
+  const updatedAt = typeof body.updatedAt === "string" ? new Date(body.updatedAt) : null;
+  if (!updatedAt || Number.isNaN(updatedAt.getTime())) return NextResponse.json({ error: "请刷新项目后重试" }, { status: 400 });
+  try {
+    const projects = (await getMongo()).db("junyang-projects").collection("projects");
+    const current = await projects.findOne({ _id: new ObjectId(id) }, { projection: { updatedAt: 1, deletedAt: 1 } });
+    if (!current || current.deletedAt) return NextResponse.json({ error: "项目不存在或已删除" }, { status: 404 });
+    const now = new Date(Math.max(Date.now(), updatedAt.getTime() + 1));
+    const result = await projects.updateOne({ _id: new ObjectId(id), updatedAt, deletedAt: null }, { $set: { deletedAt: now, deletedBy: deletionActor(request), updatedAt: now } }, { maxTimeMS: 10000 });
+    if (!result.matchedCount) return NextResponse.json({ error: "项目已变化，请刷新后重试" }, { status: 409 });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "删除结果未知，请刷新后确认" }, { status: 503 });
   }
 }

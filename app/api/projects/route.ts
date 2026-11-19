@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const sorts = { createdDesc: { createdAt: -1, _id: -1 }, updatedDesc: { updatedAt: -1, _id: -1 }, updatedAsc: { updatedAt: 1, _id: 1 }, numberDesc: { projectNumber: -1, _id: -1 }, numberAsc: { projectNumber: 1, _id: 1 }, nameAsc: { name: 1, _id: 1 }, nameDesc: { name: -1, _id: -1 } } as const;
     const sort = sorts[sortKey as keyof typeof sorts] || sorts.createdDesc;
     const filter = {
+      deletedAt: null,
       ...(won ? { bidStatus: "已中标" } : bidStatuses.length ? { bidStatus: { $in: bidStatuses.flatMap((value): (string | null)[] => value === "__unset__" ? [null, ""] : [value]) } } : {}), ...(bidMethods.length ? { bidMethod: { $in: bidMethods.flatMap((value): (string | null)[] => value === "__unset__" ? [null, ""] : [value]) } } : {}),
       ...(number ? { projectNumber: Number(number) } : {}),
       ...(winnerId ? { $and: [{ $or: [{ "winner.value": winnerId }, { winner: winnerLabel }] }] } : winnerExact ? { winner: winnerExact } : winner ? { $and: [{ $or: [{ "winner.label": { $regex: winner, $options: "i" } }, { "winner.name": { $regex: winner, $options: "i" } }, { winner: { $regex: winner, $options: "i" } }] }] } : {}),
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     const [total, docs, statuses] = await Promise.all([
       projects.countDocuments(filter, { maxTimeMS: 10000 }),
       projects.find(filter, { projection: { name: 1, projectNumber: 1, projectStatus: 1, bidStatus: 1, bidders: 1, projectType: 1, winner: 1, bidMethod: 1, bidStartTime: 1, projectStart: 1, projectEnd: 1, bidderCompanies: 1, notes: 1, todo: 1, updatedAt: 1, lastEditedBy: 1 } }).sort(sort).skip((page - 1) * size).limit(size).maxTimeMS(10000).toArray(),
-      projects.distinct("projectStatus", {}, { maxTimeMS: 10000 }),
+      projects.distinct("projectStatus", { deletedAt: null }, { maxTimeMS: 10000 }),
     ]);
     const ids = docs.map((p) => String(p._id));
     const finance = client.db("junyang-finance");

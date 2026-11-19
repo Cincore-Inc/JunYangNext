@@ -15,12 +15,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!fields.includes(body.field) || !Number.isInteger(body.index) || body.index < 0 || body.index > 1000 || !version || Number.isNaN(version.getTime())) return NextResponse.json({ error: "附件参数无效" }, { status: 400 });
   try {
     const collection = (await getMongo()).db("junyang-projects").collection("projects");
-    const row = await collection.findOne({ _id: new ObjectId(id), updatedAt: version }, { projection: { [body.field]: 1, deletedAttachments: 1 } });
+    const row = await collection.findOne({ _id: new ObjectId(id), updatedAt: version, deletedAt: null }, { projection: { [body.field]: 1, deletedAttachments: 1 } });
     const files = row?.[body.field];
     if (!Array.isArray(files) || typeof files[body.index] !== "string") return NextResponse.json({ error: "附件已变化或不存在，请刷新后重试" }, { status: 409 });
     if (row?.deletedAttachments !== undefined && !Array.isArray(row.deletedAttachments)) return NextResponse.json({ error: "删除记录格式异常" }, { status: 409 });
     const remaining = files.filter((_, index) => index !== body.index);
-    const result = await collection.updateOne({ _id: new ObjectId(id), updatedAt: version }, { $set: { [body.field]: remaining, deletedAttachments: [...(row?.deletedAttachments || []), { field: body.field, path: files[body.index], deletedAt: new Date() }], updatedAt: new Date() } });
+    const result = await collection.updateOne({ _id: new ObjectId(id), updatedAt: version, deletedAt: null }, { $set: { [body.field]: remaining, deletedAttachments: [...(row?.deletedAttachments || []), { field: body.field, path: files[body.index], deletedAt: new Date() }], updatedAt: new Date() } });
     return result.matchedCount ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "项目已变化，请刷新后重试" }, { status: 409 });
   } catch { return NextResponse.json({ error: "删除结果未知，请刷新后确认" }, { status: 503 }); }
 }

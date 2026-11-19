@@ -135,6 +135,20 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
     assert.equal((await fetch(`${base}/api/attachments/upload`, { method: 'POST', headers: { cookie, origin: base }, body: largeForm })).status, 200);
     const largeDownload = await fetch(`${base}/api/attachments?${new URLSearchParams({ kind: 'projects', id: String(projectId), field: 'otherFiles', download: '1' })}`, { headers: { cookie }, redirect: 'manual' });
     assert.equal(largeDownload.status, 307); assert.match(decodeURIComponent(new URL(largeDownload.headers.get('location')).searchParams.get('response-content-disposition')), /项目资料\.dwg/);
+    const deletedProjectResponse = await fetch(`${base}/api/projects`, { method: 'POST', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ name: '软删除隔离项目' }) });
+    assert.equal(deletedProjectResponse.status, 200);
+    const deletedProjectId = (await deletedProjectResponse.json()).id;
+    const deletedProject = await projectCollection.findOne({ _id: new ObjectId(deletedProjectId) });
+    assert.equal((await fetch(`${base}/api/projects/${deletedProjectId}`, { method: 'DELETE', headers: { cookie: staffCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ updatedAt: deletedProject.updatedAt.toISOString() }) })).status, 403);
+    assert.equal((await fetch(`${base}/api/projects/${deletedProjectId}`, { method: 'DELETE', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ updatedAt: deletedProject.updatedAt.toISOString() }) })).status, 200);
+    const deletedRow = await projectCollection.findOne({ _id: new ObjectId(deletedProjectId) });
+    assert.ok(deletedRow.deletedAt); assert.equal(deletedRow.deletedBy, 77);
+    assert.equal((await queryProjects({ q: '软删除隔离项目' })).total, 0);
+    assert.equal((await fetch(`${base}/api/projects/${deletedProjectId}`, { headers: { cookie } })).status, 404);
+    assert.equal((await fetch(`${base}/api/projects/${deletedProjectId}`, { method: 'PATCH', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ ...projectData, updatedAt: deletedRow.updatedAt.toISOString() }) })).status, 409);
+    assert.equal((await writeFinance('create', 'POST', { kind: 'transactions', projectId: deletedProjectId, companyId: refs.companyId, date: '2026-11-19', title: '不可关联已删除项目', type: '材料费', amount: '1' })).status, 400);
+    const deletedUpload = new FormData(); deletedUpload.set('kind', 'projects'); deletedUpload.set('id', deletedProjectId); deletedUpload.set('field', 'otherFiles'); deletedUpload.set('file', new Blob([bytes], { type: 'image/png' }), 'deleted.png');
+    assert.equal((await fetch(`${base}/api/attachments/upload`, { method: 'POST', headers: { cookie, origin: base }, body: deletedUpload })).status, 404);
   } finally {
     server.kill('SIGTERM'); await client.close(); await database.stop();
   }

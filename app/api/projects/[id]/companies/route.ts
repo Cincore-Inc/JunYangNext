@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (typeof body.depositRefundDate !== "string" || (date && (!/^\d{4}-\d{2}-\d{2}$/.test(body.depositRefundDate) || Number.isNaN(date.getTime()) || new Date(date.getTime() + 28800000).toISOString().slice(0,10) !== body.depositRefundDate))) return NextResponse.json({ error: "退还日期无效" }, { status: 400 });
   try {
     const collection = (await getMongo()).db("junyang-projects").collection("projects");
-    const project = await collection.findOne({ _id: new ObjectId(id), updatedAt: version }, { projection: { bidderCompanies: 1 } });
+    const project = await collection.findOne({ _id: new ObjectId(id), updatedAt: version, deletedAt: null }, { projection: { bidderCompanies: 1 } });
     if (!project || (project.bidderCompanies != null && !Array.isArray(project.bidderCompanies)) || (index !== null && !project.bidderCompanies?.[index]) || (index === null && (project.bidderCompanies?.length || 0) >= 1000)) return NextResponse.json({ error: "项目已变化或投标公司不存在，请刷新后重试" }, { status: 409 });
     const companies = [...(project.bidderCompanies || [])];
     const original = index === null ? null : companies[index];
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const oldDate = original?.depositRefundDate instanceof Date ? new Date(original.depositRefundDate.getTime() + 28800000).toISOString().slice(0, 10) : "";
     if (!original || oldDate !== body.depositRefundDate) entry.depositRefundDate = date;
     if (index === null) companies.push(entry); else companies[index] = entry;
-    const result = await collection.updateOne({ _id: new ObjectId(id), updatedAt: version }, { $set: { bidderCompanies: companies, updatedAt: new Date(Math.max(Date.now(), version.getTime() + 1)) } });
+    const result = await collection.updateOne({ _id: new ObjectId(id), updatedAt: version, deletedAt: null }, { $set: { bidderCompanies: companies, updatedAt: new Date(Math.max(Date.now(), version.getTime() + 1)) } });
     return result.matchedCount ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "项目已变化，请刷新后重试" }, { status: 409 });
   } catch { return NextResponse.json({ error: "保存结果未知，请刷新后确认" }, { status: 503 }); }
 }

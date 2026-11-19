@@ -12,7 +12,7 @@ export async function financeReferences(projectId: unknown, companyId: unknown) 
 
 export async function financeProjectReference(id: unknown) {
   if (typeof id !== "string" || !/^[a-f\d]{24}$/i.test(id)) return null;
-  const project = await (await getMongo()).db("junyang-projects").collection("projects").findOne({ _id: new ObjectId(id) }, { projection: { name: 1, projectNumber: 1 }, maxTimeMS: 10000 });
+  const project = await (await getMongo()).db("junyang-projects").collection("projects").findOne({ _id: new ObjectId(id), deletedAt: null }, { projection: { name: 1, projectNumber: 1 }, maxTimeMS: 10000 });
   return project ? { ref: { value: id, label: project.name || "未命名项目" }, projectNumber: project.projectNumber } : null;
 }
 

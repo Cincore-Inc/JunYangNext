@@ -59,13 +59,14 @@ export async function POST(request: NextRequest) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const type = await documentType(file.size > defaultMaxSize ? bytes.subarray(0, 12) : bytes, file.name) || { extension: "bin", mime: "application/octet-stream" };
     if (!type) return NextResponse.json({ error: "文件类型或内容不受支持" }, { status: 400 });
-    const collection = (await getMongo()).db(kind === "projects" ? "junyang-projects" : kind === "files" ? "junyang-files" : "junyang-finance").collection<{ receipts?: string[]; otherFiles?: string[]; transferRecords?: { _id: ObjectId; file?: string }[]; archivedAttachments?: { field: string; path: string; transferId?: string; replacedAt: Date; replacedBy: number | null }[]; receipt?: string; contract?: string; license?: string; ownerId?: string; bankCertificate?: string; status?: string; filename?: string; filepath?: string; enabled?: boolean; createdAt?: Date; updatedAt?: Date }>(kind);
+    const collection = (await getMongo()).db(kind === "projects" ? "junyang-projects" : kind === "files" ? "junyang-files" : "junyang-finance").collection<{ receipts?: string[]; otherFiles?: string[]; transferRecords?: { _id: ObjectId; file?: string }[]; archivedAttachments?: { field: string; path: string; transferId?: string; replacedAt: Date; replacedBy: number | null }[]; receipt?: string; contract?: string; license?: string; ownerId?: string; bankCertificate?: string; status?: string; filename?: string; filepath?: string; enabled?: boolean; deletedAt?: Date | null; createdAt?: Date; updatedAt?: Date }>(kind);
     const objectId = kind === "files" ? null : new ObjectId(id as string);
+    const recordFilter = { _id: objectId!, ...(kind === "projects" ? { deletedAt: null } : {}) };
     const field = kind === "projects" ? (requestedField as string || "otherFiles") : kind === "transactions" ? "receipt" : kind === "receipts" ? (requestedField as "receipts" | "otherFiles" | "contract" | "license" | "ownerId" | "bankCertificate" | "transferRecords" || "receipts") : "receipts";
     const single = ["receipt", "contract", "license", "ownerId", "bankCertificate"].includes(field);
     let previous: string | undefined;
     if (objectId) {
-      const record = await collection.findOne({ _id: objectId }, { projection: { [field]: 1, status: 1, archivedAttachments: 1 }, maxTimeMS: 10000 });
+      const record = await collection.findOne(recordFilter, { projection: { [field]: 1, status: 1, archivedAttachments: 1 }, maxTimeMS: 10000 });
       if (!record) return NextResponse.json({ error: "关联记录不存在" }, { status: 404 });
       if (field === "transferRecords") {
         const transfer = Array.isArray(record.transferRecords) && record.transferRecords.find((item) => String(item._id) === transferId);
@@ -95,13 +96,13 @@ export async function POST(request: NextRequest) {
     if (kind === "files") {
       await collection.insertOne({ filename: file.name.slice(0, 255), filepath: key.slice("files/".length), enabled: true, createdAt: new Date(), updatedAt: new Date() }, { maxTimeMS: 10000 });
     } else if (field === "transferRecords") {
-      const result = await collection.updateOne({ _id: objectId!, transferRecords: { $elemMatch: { _id: new ObjectId(transferId as string), ...(previous ? { file: previous } : { $or: [{ file: { $exists: false } }, { file: "" }, { file: { $type: 10 } }] }) } } }, { $set: { "transferRecords.$[item].file": key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, transferId: transferId as string, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { arrayFilters: [{ "item._id": new ObjectId(transferId as string) }], maxTimeMS: 10000 });
+      const result = await collection.updateOne({ ...recordFilter, transferRecords: { $elemMatch: { _id: new ObjectId(transferId as string), ...(previous ? { file: previous } : { $or: [{ file: { $exists: false } }, { file: "" }, { file: { $type: 10 } }] }) } } }, { $set: { "transferRecords.$[item].file": key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, transferId: transferId as string, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { arrayFilters: [{ "item._id": new ObjectId(transferId as string) }], maxTimeMS: 10000 });
       if (!result.matchedCount) return NextResponse.json({ error: "文件已上传，但转账记录已变化；请联系管理员处理" }, { status: 409 });
     } else if (single) {
-      const result = await collection.updateOne({ _id: objectId!, ...(previous ? { [field]: previous } : { $or: [{ [field]: { $exists: false } }, { [field]: "" }, { [field]: { $type: 10 } }] }), ...(kind === "transactions" ? { status: { $ne: "已对账" } } : {}) }, { $set: { [field]: key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { maxTimeMS: 10000 });
+      const result = await collection.updateOne({ ...recordFilter, ...(previous ? { [field]: previous } : { $or: [{ [field]: { $exists: false } }, { [field]: "" }, { [field]: { $type: 10 } }] }), ...(kind === "transactions" ? { status: { $ne: "已对账" } } : {}) }, { $set: { [field]: key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { maxTimeMS: 10000 });
       if (!result.matchedCount) return NextResponse.json({ error: "文件已上传，但记录已有凭证或状态已变化；请联系管理员处理" }, { status: 409 });
     } else {
-      const result = await collection.updateOne({ _id: objectId! }, { $push: { [field]: key }, $set: { updatedAt: new Date() } }, { maxTimeMS: 10000 });
+      const result = await collection.updateOne(recordFilter, { $push: { [field]: key }, $set: { updatedAt: new Date() } }, { maxTimeMS: 10000 });
       if (!result.matchedCount) return NextResponse.json({ error: "文件已上传，但关联记录不存在；请联系管理员处理" }, { status: 409 });
     }
     return NextResponse.json({ ok: true });
