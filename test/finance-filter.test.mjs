@@ -27,6 +27,12 @@ test('财务项目和公司按标识筛选并保持项目权限范围', () => {
     assert.equal(filter['project.value'], project);
     assert.equal(filter['company.value'], company);
   }
+  for (const kind of ['transactions', 'receipts', 'invoices']) {
+    const unlinked = financeFilter(new URLSearchParams({ filterProjectId: '__unset__', filterCompanyId: '__unset__' }), kind);
+    assert.deepEqual(unlinked['project.value'], { $in: [null, ''] });
+    assert.deepEqual(unlinked['company.value'], { $in: [null, ''] });
+  }
+  assert.throws(() => financeFilter(new URLSearchParams({ projectId: project, filterProjectId: '__unset__' }), 'receipts'));
   assert.throws(() => financeFilter(new URLSearchParams({ filterProjectId: 'bad' }), 'receipts'));
   assert.throws(() => financeFilter(new URLSearchParams({ filterCompanyId: 'bad' }), 'receipts'));
   assert.throws(() => financeFilter(new URLSearchParams({ projectId: project, filterProjectId: 'abcdef012345678901234567' }), 'receipts'));
