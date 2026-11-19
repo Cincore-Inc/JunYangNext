@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/session";
-import { readPersonnelMedia } from "@/lib/personnel-media";
+import { personnelFilename, readPersonnelMedia } from "@/lib/personnel-media";
 import { uploadObject } from "@/lib/storage";
 import { randomUUID } from "node:crypto";
 import { fileType } from "@/lib/upload-file.mjs";
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     if (typeof path !== "string" || !/^(?:oss:)?(?:staff|company)\/image\/[\w.-]+$/.test(path)) return NextResponse.json({ error: "凭证不存在" }, { status: 404 });
     const { response, mime } = await readPersonnelMedia(path);
     const headers = new Headers({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Type": mime, "Content-Security-Policy": "default-src 'none'; sandbox" });
-    if (request.nextUrl.searchParams.get("download") === "1") headers.set("Content-Disposition", `attachment; filename="${path.split("/").pop()}"`);
+    if (request.nextUrl.searchParams.get("download") === "1") headers.set("Content-Disposition", `attachment; filename="${personnelFilename(path, mime)}"`);
     return new NextResponse(response.body, { headers });
   } catch { return NextResponse.json({ error: "凭证读取失败" }, { status: 503 }); }
 }
