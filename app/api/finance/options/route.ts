@@ -32,10 +32,10 @@ export async function GET(request: NextRequest) {
           { $group: { _id: "$project.value", label: { $first: { $ifNull: ["$project.label", "$project.name"] } } } },
         ], { maxTimeMS: 10000, batchSize: 5000 }).toArray();
         const ids = refs.map((row) => new ObjectId(row._id));
-        const found = ids.length ? await projects.find({ _id: { $in: ids } }, { projection: { _id: 1 }, maxTimeMS: 10000 }).toArray() : [];
-        const known = new Set(found.map((row) => String(row._id)));
+        const found = ids.length ? await projects.find({ _id: { $in: ids } }, { projection: { name: 1 }, maxTimeMS: 10000 }).toArray() : [];
+        const known = new Map(found.map((row) => [String(row._id), row.name]));
         const listed = new Set(items.map((row) => row.value.toLowerCase()));
-        items.push(...refs.filter((row) => !listed.has(String(row._id).toLowerCase())).slice(0, 50).map((row) => ({ value: String(row._id), label: `${row.label || `未命名项目 ${row._id}`}（${known.has(String(row._id).toLowerCase()) ? "历史名称" : "历史项目"}）` })));
+        items.push(...refs.filter((row) => { const id = String(row._id).toLowerCase(); return !listed.has(id) && (!known.has(id) || known.get(id) !== row.label); }).slice(0, 50).map((row) => ({ value: String(row._id), label: `${row.label || `未命名项目 ${row._id}`}（${known.has(String(row._id).toLowerCase()) ? "历史名称" : "历史项目"}）` })));
       }
       return NextResponse.json({ items });
     }
