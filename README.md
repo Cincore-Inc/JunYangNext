@@ -9,6 +9,8 @@ npm run dev
 
 打开 http://127.0.0.1:3100/login 并使用旧系统账号登录。后台页面及项目、财务和附件接口默认使用新版独立会话；旧系统会话需要重新登录。开发服务器只监听本机。数据库连接需在忽略版本管理的 `.env.local` 中配置 `MONGODB_URL` 和 `JUNYANG_MYSQL_URL`。如数据库只能通过 SSH 访问，需先建立端口转发；连接失败时页面会提示。
 
+当前生产 MySQL 和 MongoDB 的连接目标是阿里云数据库地址，附件存放在阿里云 OSS；本地配置通过生产服务器的 SSH 隧道访问数据库。停用旧业务程序不会自动迁移或替代这些数据服务，若关闭跳板服务器，需要先为新版配置并验证其他数据库网络连接。
+
 项目、财务及文件管理附件使用原阿里云 OSS；本地 `.env.local` 需配置 `ALI_OOS_BUCKET_NAME`、`ALI_KEY_ID` 和 `ALI_SECRECT`。默认使用独立认证，需在 `.env.local` 配置长度至少 32 位的随机 `JUNYANG_SESSION_SECRET`；仅过渡测试时可显式配置 `JUNYANG_AUTH_MODE=legacy` 使用旧认证；多实例需要使用相同密钥。不要提交配置或将服务暴露到公网。
 
 历史人员图片和社保凭证使用旧路径时，需要在切换前迁移到 OSS。先运行 `node scripts/migrate-personnel-media.mjs` 检查待迁移数量；如不为零，设置 `JUNYANG_LEGACY_MEDIA_DIR` 为旧媒体根目录（其下包含 `staff/image` 和 `company/image`），或将 `JUNYANG_LEGACY_MEDIA_URL` 指向旧媒体根地址，再运行 `node scripts/migrate-personnel-media.mjs --apply`。脚本不会覆盖内容不同的已有对象，失败时可修复后重试；未迁移的旧路径不能在新版预览。当前生产数据检查结果为零条。
