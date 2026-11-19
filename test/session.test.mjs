@@ -302,7 +302,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const saveCertificate = (payload, headers = auth) => fetch(`${base}/api/personnel/certificate`, { method: 'POST', headers: { ...headers, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     assert.equal((await saveCertificate(certificate, { cookie: limitedCookie })).status, 403);
     assert.equal((await saveCertificate({ ...certificate, cert_start_date: '2026-02-30' })).status, 400);
+    assert.equal((await saveCertificate({ ...certificate, cert_name: '' })).status, 400);
     assert.equal((await saveCertificate(certificate)).status, 200);
+    assert.equal((await saveCertificate({ ...certificate, id: 78, cert_name: '', expected: { cert_name: 'Old', cert_person_name: 'Person', cert_start_date: null, cert_end_date: null, cert_sure: 'ON', cert_next_date: null, cert_status: null, staff_id: 10 } })).status, 200);
     for (const certStatus of ['ON_HALF', 'OFF_HALF']) { assert.equal((await saveCertificate({ ...certificate, cert_status: certStatus })).status, 200); assert.equal((await fetch(`${base}/api/personnel?kind=certificates&status=${certStatus}`, { headers: auth })).status, 200); }
     assert.equal((await saveCertificate({ ...certificate, id: 1, expected: { cert_name: 'Old', cert_person_name: 'Person', cert_start_date: null, cert_end_date: null, cert_sure: 'ON', cert_next_date: null, cert_status: null, staff_id: 10 } })).status, 200);
     const exam = { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19T10:00', exam_status: 'ON', cert_date: '', cert_status: '' };

@@ -40,7 +40,8 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('INSERT INTO staff_itemlist')) { if (params[0] !== 20) throw new Error('missing item list'); return [{ insertId: 1 }]; }
       if (sql.startsWith('SELECT id FROM staff_salarydetail') || sql.startsWith('SELECT id FROM staff_insurancedetail')) return [params[0] === 11 ? [{ id: 1 }] : []];
       if (sql.startsWith('SELECT name FROM staff_staff')) return [[{ name: 'Person' }]];
-      if (sql.startsWith('UPDATE staff_certificate') && params[8] === 75 && JSON.stringify(params.slice(0,8)) !== JSON.stringify([null,'历史姓名',null,'2026-11-19',null,null,null,null])) throw new Error('certificate historical values were overwritten');
+      if (sql.startsWith('UPDATE staff_certificate') && params[8] === 75 && JSON.stringify(params.slice(0,8)) !== JSON.stringify([params[9] === null ? null : '','历史姓名',null,'2026-11-19',null,null,null,null])) throw new Error('certificate historical values were overwritten');
+      if (sql.startsWith('UPDATE staff_certificate') && params[8] === 78 && params[0] !== '') throw new Error('certificate name was not cleared');
       if (sql.startsWith('UPDATE staff_certificate')) return [{ affectedRows: sql.includes('NOT EXISTS') && deletedPersonnel.has('certificates:1') ? 0 : 1 }];
       if (sql.startsWith('UPDATE staff_exam SET exam_name=') && params.includes(77) && (sql.includes('exam_status') || sql.includes('cert_status'))) throw new Error('restricted results must remain unchanged');
       if (sql.startsWith('UPDATE staff_exam SET exam_name=') && params.includes(76) && params[0] !== '修改时间' && (sql.includes('exam_date=?') || sql.includes('cert_date=?') || params[1] !== '旧姓名' || params[4] !== 10)) throw new Error('unchanged exam time or historical person not preserved');
