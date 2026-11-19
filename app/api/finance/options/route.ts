@@ -22,17 +22,20 @@ export async function GET(request: NextRequest) {
       const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const client = await getMongo();
       const projects = client.db("junyang-projects").collection("projects");
-      const rows = await projects.find(query ? { name: { $regex: escaped, $options: "i" } } : {}, { projection: { name: 1 }, maxTimeMS: 10000 }).sort({ updatedAt: -1, _id: -1 }).limit(50).toArray();
-      const items = rows.map((row) => ({ value: String(row._id), label: row.name || "未命名项目" }));
       const source = request.nextUrl.searchParams.get("source") || "";
-      if (query && request.nextUrl.searchParams.get("historical") === "1") {
-        if (!["transactions", "receipts", "invoices"].includes(source)) return NextResponse.json({ error: "数据类型无效" }, { status: 400 });
-        const refs = await client.db("junyang-finance").collection(source).aggregate([
+      const historical = Boolean(query && request.nextUrl.searchParams.get("historical") === "1");
+      if (historical && !["transactions", "receipts", "invoices"].includes(source)) return NextResponse.json({ error: "数据类型无效" }, { status: 400 });
+      const [rows, refs] = await Promise.all([
+        projects.find(query ? { name: { $regex: escaped, $options: "i" } } : {}, { projection: { name: 1 }, maxTimeMS: 10000 }).sort({ updatedAt: -1, _id: -1 }).limit(50).toArray(),
+        historical ? client.db("junyang-finance").collection(source).aggregate([
           { $match: { "project.value": { $type: "string", $regex: "^[a-fA-F0-9]{24}$" }, $or: [{ "project.label": { $regex: escaped, $options: "i" } }, { "project.name": { $regex: escaped, $options: "i" } }, { "project.value": { $regex: escaped, $options: "i" } }] } },
           { $group: { _id: "$project.value", label: { $first: { $ifNull: ["$project.label", "$project.name"] } } } },
-        ], { maxTimeMS: 10000, batchSize: 5000 }).toArray();
+        ], { maxTimeMS: 10000, batchSize: 5000 }).toArray() : Promise.resolve([]),
+      ]);
+      const items = rows.map((row) => ({ value: String(row._id), label: row.name || "未命名项目" }));
+      if (historical) {
         const ids = refs.map((row) => new ObjectId(row._id));
-        const found = ids.length ? await projects.find({ _id: { $in: ids } }, { projection: { name: 1 }, maxTimeMS: 10000 }).toArray() : [];
+        const found = ids.length ? await projects.find({ _id: { $in: ids } }, { projection: { name: 1 }, maxTimeMS: 10000, batchSize: 5000 }).toArray() : [];
         const known = new Map(found.map((row) => [String(row._id), row.name]));
         const listed = new Set(items.map((row) => row.value.toLowerCase()));
         items.push(...refs.filter((row) => { const id = String(row._id).toLowerCase(); return !listed.has(id) && (!known.has(id) || known.get(id) !== row.label); }).slice(0, 50).map((row) => ({ value: String(row._id), label: `${row.label || `未命名项目 ${row._id}`}（${known.has(String(row._id).toLowerCase()) ? "历史名称" : "历史项目"}）` })));
