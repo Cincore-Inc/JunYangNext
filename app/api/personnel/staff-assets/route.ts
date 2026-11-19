@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (typeof staff !== "string" || typeof kind !== "string" || !valid(staff, kind) || !(file instanceof File) || !file.size || file.size > 10 * 1024 * 1024) return NextResponse.json({ error: "上传参数无效" }, { status: 400 });
     const denied = await authorize(request, kind); if (denied) return denied;
     const bytes = new Uint8Array(await file.arrayBuffer()), type = fileType(bytes);
-    if (!type || !["image/jpeg", "image/png"].includes(type.mime)) return NextResponse.json({ error: "仅支持 JPG 和 PNG 图片" }, { status: 400 });
+    if (!type || !["image/jpeg", "image/png", "image/gif", "image/webp"].includes(type.mime)) return NextResponse.json({ error: "仅支持 JPG、PNG、GIF 和 WebP 图片" }, { status: 400 });
     const db = getMysql();
     const [rows] = await db.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE id = ?", [staff]);
     if (!rows.length) return NextResponse.json({ error: "人员不存在" }, { status: 404 });

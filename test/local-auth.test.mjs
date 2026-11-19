@@ -61,6 +61,17 @@ test('local authentication works without Core and enforces roles', { timeout: 30
       assert.match(download.headers.get('content-disposition'), /^attachment/); assert.deepEqual(Buffer.from(await download.arrayBuffer()), image);
       assert.equal((await fetch(base + endpoint, { headers: { cookie } })).status, 403);
     }
+    for (const [id, mime, contents] of [[2, 'image/webp', 'RIFF0000WEBP'], [3, 'image/gif', 'GIF89a']]) {
+      for (const [endpoint, fields] of [['/api/personnel/staff-assets', { staff: '10', kind: 'staff' }], ['/api/personnel/insurance-file', { id: String(id), field: 'company_payproof' }]]) {
+        const form = new FormData(); for (const [key, value] of Object.entries(fields)) form.set(key, value); form.set('file', new Blob([contents], {type:mime}), 'test');
+        assert.equal((await fetch(base + endpoint, {method:'POST',headers:{cookie:managerCookie,origin:base},body:form})).status,200);
+      }
+      for (const endpoint of [`/api/personnel/staff-image?staff=10&id=${id}&kind=staff`, `/api/personnel/insurance-file?id=${id}&field=company_payproof`]) {
+        const response = await fetch(base + endpoint, {headers:{cookie:managerCookie}}); assert.equal(response.status,200); assert.equal(response.headers.get('content-type'),mime); assert.equal(await response.text(),contents);
+      }
+    }
+    const mixed = await fetch(base + '/api/personnel/insurance-download', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ ids: [2,3] }) });
+    assert.equal(mixed.status,200); const mixedZip = await JSZip.loadAsync(await mixed.arrayBuffer()); assert.equal(await mixedZip.file('2-company.webp').async('string'),'RIFF0000WEBP'); assert.equal(await mixedZip.file('3-company.gif').async('string'),'GIF89a');
     const archive = await fetch(base + '/api/personnel/insurance-download', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ ids: [1] }) });
     assert.equal(archive.status, 200); const zip = await JSZip.loadAsync(await archive.arrayBuffer()); assert.deepEqual(await zip.file('1-company.png').async('nodebuffer'), image);
   } finally { server.kill('SIGTERM'); }

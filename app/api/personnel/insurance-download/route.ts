@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       const { response, mime } = await readPersonnelMedia(path);
       const bytes = await response.arrayBuffer(); total += bytes.byteLength;
       if (total > 100 * 1024 * 1024) return NextResponse.json({ error: "文件总大小超过 100 MB，请分批下载" }, { status: 413 });
-      zip.file(`${row.id}-${label}.${mime === "image/png" ? "png" : "jpg"}`, bytes); count++;
+      zip.file(`${row.id}-${label}.${({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[mime]}`, bytes); count++;
     }
     if (!count) return NextResponse.json({ error: "所选记录没有凭证" }, { status: 404 });
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });

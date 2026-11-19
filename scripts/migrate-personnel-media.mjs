@@ -57,7 +57,7 @@ async function main() {
         if (!validPath.test(row.path)) throw new Error('历史路径无效');
         if (!copied.has(row.path)) {
           const bytes = await readSource(row.path), type = fileType(bytes);
-          if (!type || !['image/jpeg', 'image/png'].includes(type.mime)) throw new Error('历史文件不是支持的图片');
+          if (!type || !['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(type.mime)) throw new Error('历史文件不是支持的图片');
           const key = `core-media/${row.path}`;
           try {
             const existing = await oss.get(key);
