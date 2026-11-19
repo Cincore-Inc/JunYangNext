@@ -36,7 +36,7 @@
 
 .dashboard{width:100%;max-width:none;min-width:0}
 .project-info-editor .ant-form-item{margin-bottom:0}
-@media(max-width:1439px){.project-detail-drawer .ant-drawer-content-wrapper{width:min(1100px,calc(100vw - 32px))!important}}
+@media(max-width:1439px){.project-detail-drawer .ant-drawer-content-wrapper{width:80vw!important}}
 .project-info-editor .ant-input-number,.project-info-editor .ant-picker,.project-info-editor .ant-select{width:100%}
 .invoice-create-upload{display:flex;flex-direction:column;gap:12px;margin:16px 0}.invoice-create-upload .summary-note{margin:0;line-height:1.6}
 
