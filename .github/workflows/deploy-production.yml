@@ -41,8 +41,16 @@ jobs:
       - run: npm run build
       - run: npm run test:integration
 
+      - uses: docker/setup-buildx-action@v3
+
       - name: Build deploy image
-        run: docker build --tag "junyang-next:${{ github.sha }}" .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: junyang-next:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Package deploy image
         run: docker save "junyang-next:${{ github.sha }}" | gzip > /tmp/junyang-next-image.tar.gz
@@ -55,7 +63,7 @@ jobs:
           test -n "$DEPLOY_SSH_KEY"
           test -n "$DEPLOY_KNOWN_HOSTS"
           install -d -m 700 ~/.ssh
-          printf '%s' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
