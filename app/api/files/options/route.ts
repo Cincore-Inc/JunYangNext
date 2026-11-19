@@ -22,11 +22,13 @@ export async function GET(request: NextRequest) {
     if (request.nextUrl.searchParams.has("people")) {
       const q = (request.nextUrl.searchParams.get("people") || "").trim().slice(0, 80).replace(/[\\%_]/g, "\\$&");
       const db = getMysql(), term = `%${q}%`;
+      const historical = request.nextUrl.searchParams.get("historical") === "1";
+      const deleted = "EXISTS (SELECT 1 FROM junyang_deleted_companies d WHERE d.company_id = c.id)";
       const [[companies], [staff]] = await Promise.all([
-        db.execute<RowDataPacket[]>("SELECT u_id, name FROM company_companys c WHERE (name LIKE ? OR name_pinyin LIKE ?) AND NOT EXISTS (SELECT 1 FROM junyang_deleted_companies d WHERE d.company_id = c.id) ORDER BY id LIMIT 10", [term, term]),
+        db.execute<RowDataPacket[]>(`SELECT c.u_id, c.name, ${deleted} AS deleted FROM company_companys c WHERE (c.name LIKE ? OR c.name_pinyin LIKE ?)${historical ? "" : ` AND NOT ${deleted}`} ORDER BY c.id LIMIT 10`, [term, term]),
         db.execute<RowDataPacket[]>("SELECT u_id, name FROM staff_staff WHERE name LIKE ? OR name_pinyin LIKE ? ORDER BY id LIMIT 50", [term, term]),
       ]);
-      const items = [...companies, ...staff].filter(row => row.u_id && row.name).map(row => ({ value: String(row.u_id).replace(/^(........)(....)(....)(....)(............)$/, "$1-$2-$3-$4-$5"), label: row.name }));
+      const items = [...companies, ...staff].filter(row => row.u_id && row.name).map(row => ({ value: String(row.u_id).replace(/^(........)(....)(....)(....)(............)$/, "$1-$2-$3-$4-$5"), label: `${row.name}${row.deleted ? "（已删除）" : ""}` }));
       return NextResponse.json({ items }, { headers: { "Cache-Control": "no-store" } });
     }
     const db = (await getMongo()).db("junyang-files");

@@ -25,6 +25,12 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     }
     const manager = await login('localadmin', 'secret-admin'); assert.equal(manager.status, 200);
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
+    const fileOptions = async (suffix = '', session = managerCookie) => fetch(base + '/api/files/options?people=OptionFile' + suffix, { headers: { cookie: session } });
+    assert.equal((await fileOptions('&historical=1', cookie)).status, 403);
+    assert.deepEqual((await (await fileOptions()).json()).items.map(item => item.label), ['OptionFile']);
+    const historicalFileOptions = await (await fileOptions('&historical=1')).json();
+    assert.deepEqual(historicalFileOptions.items.map(item => item.label), ['OptionFile', 'OptionFile old（已删除）']);
+    assert.equal(historicalFileOptions.items[1].value, '00000000-0000-0000-0000-000000000002');
     const companyOptions = async (suffix = '', session = managerCookie) => { const response = await fetch(base + '/api/finance/options?kind=companies&q=OptionCompany' + suffix, { headers: { cookie: session } }); return response; };
     assert.equal((await companyOptions('&historical=1', cookie)).status, 403);
     const activeOptions = await (await companyOptions()).json(); assert.deepEqual(activeOptions.items.map(item => item.label), ['OptionCompany']);
