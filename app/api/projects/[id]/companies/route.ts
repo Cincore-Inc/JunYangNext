@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const moneyFields = ["docFee", "commission", "applicationFee", "deposit", "creditReportFee", "letterFee", "showFee", "otherFee"];
   if (!version || Number.isNaN(version.getTime()) || (index !== null && (!Number.isInteger(index) || index < 0 || index > 999)) || textFields.some((key) => typeof body[key] !== "string" || body[key].length > (key === "note" ? 500 : 200)) || (index === null && !body.name.trim())) return NextResponse.json({ error: "投标公司信息无效" }, { status: 400 });
   const amounts = moneyFields.map((field) => typeof body[field] === "string" ? parseMoney(body[field]) : null);
-  if (amounts.some((value) => value === null || value < 0)) return NextResponse.json({ error: "请输入正确的费用金额" }, { status: 400 });
+  if (amounts.some((value) => value === null)) return NextResponse.json({ error: "请输入正确的费用金额" }, { status: 400 });
   const date = body.depositRefundDate ? new Date(`${body.depositRefundDate}T00:00:00+08:00`) : null;
   if (typeof body.depositRefundDate !== "string" || (date && (!/^\d{4}-\d{2}-\d{2}$/.test(body.depositRefundDate) || Number.isNaN(date.getTime()) || new Date(date.getTime() + 28800000).toISOString().slice(0,10) !== body.depositRefundDate))) return NextResponse.json({ error: "退还日期无效" }, { status: 400 });
   try {
