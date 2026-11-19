@@ -3,10 +3,14 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import JSZip from 'jszip';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 test('local authentication works without Core and enforces roles', { timeout: 30000 }, async () => {
   const base = 'http://127.0.0.1:3104';
-  const server = spawn('./node_modules/.bin/next', ['start', '--hostname', '127.0.0.1', '--port', '3104'], { env: { ...process.env, JUNYANG_AUTH_MODE: 'local', JUNYANG_SESSION_SECRET: 'test-secret-at-least-thirty-two-characters', JUNYANG_MYSQL_URL: 'mysql://test', LEGACY_CORE_URL: 'http://127.0.0.1:1', ALI_KEY_ID: 'test', ALI_SECRECT: 'test-secret', ALI_OOS_BUCKET_NAME: 'junyang-files-hangzhou', NODE_OPTIONS: `--require=${process.cwd()}/test/mysql-shim.cjs --require=${process.cwd()}/test/oss-shim.cjs` }, stdio: 'ignore' });
+  const logDir = mkdtempSync(join(tmpdir(), 'junyang-auth-test-')); const logFile = join(logDir, 'queries'); writeFileSync(logFile, '');
+  const server = spawn('./node_modules/.bin/next', ['start', '--hostname', '127.0.0.1', '--port', '3104'], { env: { ...process.env, JUNYANG_AUTH_MODE: 'local', JUNYANG_TEST_SESSION_LOG: logFile, JUNYANG_SESSION_SECRET: 'test-secret-at-least-thirty-two-characters', JUNYANG_MYSQL_URL: 'mysql://test', LEGACY_CORE_URL: 'http://127.0.0.1:1', ALI_KEY_ID: 'test', ALI_SECRECT: 'test-secret', ALI_OOS_BUCKET_NAME: 'junyang-files-hangzhou', NODE_OPTIONS: `--require=${process.cwd()}/test/mysql-shim.cjs --require=${process.cwd()}/test/oss-shim.cjs` }, stdio: 'ignore' });
   try {
     let ready = false; for (let i = 0; i < 60; i++) { try { await fetch(base + '/login'); ready = true; break; } catch { await delay(100); } }
     assert.ok(ready);
@@ -25,6 +29,11 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     }
     const manager = await login('localadmin', 'secret-admin'); assert.equal(manager.status, 200);
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
+    writeFileSync(logFile, '');
+    assert.equal((await fetch(base + '/api/users', { headers: { cookie: managerCookie } })).status, 200);
+    assert.equal(readFileSync(logFile, 'utf8'), '1');
+    assert.equal((await fetch(base + '/api/users', { headers: { cookie: managerCookie } })).status, 200);
+    assert.equal(readFileSync(logFile, 'utf8'), '11');
     const fileOptions = async (suffix = '', session = managerCookie) => fetch(base + '/api/files/options?people=OptionFile' + suffix, { headers: { cookie: session } });
     assert.equal((await fileOptions('&historical=1', cookie)).status, 403);
     assert.deepEqual((await (await fileOptions()).json()).items.map(item => item.label), ['OptionFile']);
@@ -91,5 +100,5 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     assert.equal(mixed.status,200); const mixedZip = await JSZip.loadAsync(await mixed.arrayBuffer()); assert.equal(await mixedZip.file('测试_人员-2026-11-2-社保凭证.webp').async('string'),'RIFF0000WEBP'); assert.equal(await mixedZip.file('测试_人员-2026-11-3-社保凭证.gif').async('string'),'GIF89a');
     const archive = await fetch(base + '/api/personnel/insurance-download', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ ids: [1] }) });
     assert.equal(archive.status, 200); const zip = await JSZip.loadAsync(await archive.arrayBuffer()); assert.deepEqual(await zip.file('测试_人员-2026-11-1-社保凭证.png').async('nodebuffer'), image);
-  } finally { server.kill('SIGTERM'); }
+  } finally { server.kill('SIGTERM'); rmSync(logDir, { recursive: true, force: true }); }
 });
