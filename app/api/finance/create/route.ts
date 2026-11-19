@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
   const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? new Date(`${body.date}T00:00:00+08:00`) : null;
   if (!["transactions", "receipts", "invoices"].includes(body.kind) || (body.date != null && typeof body.date !== "string") || (body.date && (!day || Number.isNaN(day.getTime()) || new Date(day.getTime() + 8 * 3600000).toISOString().slice(0, 10) !== body.date))) return NextResponse.json({ error: "类型或日期无效" }, { status: 400 });
   const isTransaction = body.kind === "transactions";
+  if (!isTransaction && body.index != null && (!Number.isSafeInteger(body.index) || body.index < 0 || body.index > 2147483647)) return NextResponse.json({ error: "票据编号无效" }, { status: 400 });
   const amount = parseMoney(body.amount ?? "0"), net = parseMoney(body.amountWithoutTax ?? "0"), tax = parseMoney(body.tax ?? "0");
   const extra = transactionExtra(body);
   const invoiceFields = !isTransaction ? invoiceExtra(body, body.kind) : {};
@@ -25,8 +26,16 @@ export async function POST(request: NextRequest) {
     if (!refs) return NextResponse.json({ error: "项目或公司不存在" }, { status: 400 });
     const now = new Date();
     const common = { ...(refs.project ? { project: refs.project } : {}), ...(refs.company ? { company: refs.company } : {}), status: "未对账", createdAt: now, updatedAt: now, __v: 0 };
-    const record = isTransaction ? { ...common, ...extra, ...(day ? { transactionDate: day } : {}), ...(body.type?.trim() ? { transactionType: body.type.trim() } : {}), title: (body.title || "").trim(), amount: Long.fromNumber(amount!), ...(amount === 0 ? {} : { direction: amount! > 0 ? "income" : "outgoing" }) } : { ...common, ...invoiceFields, ...(refs.projectNumber != null ? { projectNumber: refs.projectNumber } : {}), ...(day ? { date: day } : {}), ...(body.number?.trim() ? { [body.kind === "receipts" ? "receiptId" : "invoiceId"]: body.number.trim() } : {}), [body.kind === "receipts" ? "issuer" : "buyer"]: (body.party || "").trim(), ticketClass: (body.ticketClass || "").trim(), ticketStatus: body.ticketStatus === "未设置" ? null : body.ticketStatus || "有效", amountWithoutTax: Long.fromNumber(net!), tax: Long.fromNumber(tax!), amount: Long.fromNumber(net! + tax!), taxRate: (net === 0 ? "0" : (tax! / net! * 100).toFixed(2)) + "%", ...(body.kind === "receipts" ? { receipts: [], otherFiles: [], transferRecords: [] } : {}) };
-    await (await getMongo()).db("junyang-finance").collection(body.kind).insertOne(record, { maxTimeMS: 10000 });
+    const collection = (await getMongo()).db("junyang-finance").collection(body.kind);
+    let index = body.index;
+    if (!isTransaction && !index && refs.company && day) {
+      const [year, month] = body.date.split("-").map(Number);
+      const start = new Date(Date.UTC(year, month - 1, 1) - 28800000);
+      const end = new Date(Date.UTC(year, month, 1) - 28800000);
+      index = await collection.countDocuments({ "company.value": refs.company.value, date: { $gte: start, $lt: end } }, { maxTimeMS: 10000 }) + 1;
+    }
+    const record = isTransaction ? { ...common, ...extra, ...(day ? { transactionDate: day } : {}), ...(body.type?.trim() ? { transactionType: body.type.trim() } : {}), title: (body.title || "").trim(), amount: Long.fromNumber(amount!), ...(amount === 0 ? {} : { direction: amount! > 0 ? "income" : "outgoing" }) } : { ...common, ...invoiceFields, ...(index != null ? { index } : {}), ...(refs.projectNumber != null ? { projectNumber: refs.projectNumber } : {}), ...(day ? { date: day } : {}), ...(body.number?.trim() ? { [body.kind === "receipts" ? "receiptId" : "invoiceId"]: body.number.trim() } : {}), [body.kind === "receipts" ? "issuer" : "buyer"]: (body.party || "").trim(), ticketClass: (body.ticketClass || "").trim(), ticketStatus: body.ticketStatus === "未设置" ? null : body.ticketStatus || "有效", amountWithoutTax: Long.fromNumber(net!), tax: Long.fromNumber(tax!), amount: Long.fromNumber(net! + tax!), taxRate: (net === 0 ? "0" : (tax! / net! * 100).toFixed(2)) + "%", ...(body.kind === "receipts" ? { receipts: [], otherFiles: [], transferRecords: [] } : {}) };
+    await collection.insertOne(record, { maxTimeMS: 10000 });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if ((error as { code?: number }).code === 11000) return NextResponse.json({ error: "发票号码已存在" }, { status: 409 });
