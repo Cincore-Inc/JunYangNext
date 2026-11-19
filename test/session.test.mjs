@@ -314,6 +314,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await saveExam(exam)).status, 200);
     assert.equal((await saveExam({ ...exam, staff_id: 71 })).status, 200);
     assert.equal((await saveExam({ ...exam, staff_id: 72 })).status, 409);
+    assert.equal((await saveExam({ ...exam, id: 79, staff_id: 10, exam_name: ' 考试 ', exam_person_name: ' 员工 ', exam_status: '', cert_date: '2026-11-21T12:00', cert_status: '', expected: { exam_name: ' 考试 ', exam_person_name: ' 员工 ', exam_date: '2026-11-19 10:00', exam_date_version: '2026-11-19 10:00:00.000000', exam_status: '', cert_date: null, cert_date_version: null, cert_status: '', staff: 10 } })).status, 200);
     const existingExam = { ...exam, id: 2, cert_status: 'OFF', expected: { exam_name: 'Exam', exam_person_name: 'Person', exam_date: '2026-11-19 10:00', exam_date_version: '2026-11-19 10:00:00.000000', exam_status: 'ON', cert_date: null, cert_date_version: null, cert_status: 'OFF', staff: null } };
     assert.equal((await saveExam(existingExam, { cookie: 'junyang_session=exam-only' })).status, 200);
     assert.equal((await saveExam({ ...existingExam, id: 77, exam_status: '', cert_status: '', expected: { ...existingExam.expected, exam_status: '', cert_status: '' } }, { cookie: 'junyang_session=exam-only' })).status, 200);
