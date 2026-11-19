@@ -19,7 +19,8 @@ async function change(request: NextRequest, action: "add" | "addSub" | "removeSu
     const name = body.name?.trim() || "";
     if (action === "add") {
       if (await categories.findOne({ name, enabled: { $ne: false } })) return NextResponse.json({ error: "分类已存在" }, { status: 409 });
-      await categories.insertOne({ name, subCategories: [], enabled: true });
+      const created = await categories.insertOne({ name, subCategories: [], enabled: true });
+      return NextResponse.json({ ok: true, id: created.insertedId.toString() });
     } else {
       const filter = { _id: new ObjectId(body.id), enabled: { $ne: false } };
       const now = new Date();
