@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdministrator, requirePermission } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { getMysql } from "@/lib/mysql";
 import { sameOrigin } from "@/lib/write-request";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
-  const denied = await requireAdministrator(request);
+  const denied = await requirePermission(request, ["exam_view"]);
   if (denied) return denied;
   const id = request.nextUrl.searchParams.get("id") || "";
   if (!/^[1-9]\d{0,9}$/.test(id)) return NextResponse.json({ error: "编号无效" }, { status: 400 });

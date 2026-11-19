@@ -281,7 +281,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await postJson('/api/personnel/certificate-batch', batch)).status, 409);
     assert.equal((await saveCertificate({ ...certificate, id: 1, expected: { cert_name: 'Old', cert_person_name: 'Person', cert_start_date: null, cert_end_date: null, cert_sure: 'ON', cert_next_date: null, cert_status: null, staff_id: 10 } })).status, 409);
     const deleteExam = (id, headers = auth) => fetch(`${base}/api/personnel/exam?id=${id}`, { method: 'DELETE', headers: { ...headers, origin: base } });
-    assert.equal((await deleteExam(1, { cookie: limitedCookie })).status, 403);
+    assert.equal((await deleteExam(91, { cookie: limitedCookie })).status, 403);
+    assert.equal((await deleteExam(91, { cookie: 'junyang_session=exam-only' })).status, 200);
+    assert.equal((await deleteExam(91, { cookie: 'junyang_session=exam-only' })).status, 409);
     assert.equal((await deleteExam(999)).status, 404);
     assert.equal((await deleteExam(1)).status, 200);
     assert.equal((await deleteExam(1)).status, 409);
