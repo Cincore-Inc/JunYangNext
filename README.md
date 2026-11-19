@@ -29,4 +29,4 @@ npm run dev
 
 部署前需对 MySQL 执行 `scripts/migrations/001-company-soft-delete.sql` 和 `scripts/migrations/002-personnel-soft-delete.sql`、`scripts/migrations/003-role-soft-delete.sql`，创建软删除标记表。旧系统不会读取该标记；并行运行期间旧系统仍可能显示已删除的公司。
 
-项目交易明细查询可运行 `node scripts/ensure-finance-indexes.mjs` 创建所需的 MongoDB 索引；脚本会检查已有同键索引，可重复执行。
+财务列表及项目交易明细查询可运行 `node scripts/ensure-finance-indexes.mjs` 创建所需的 MongoDB 索引；脚本会检查已有同键索引，可重复执行。
