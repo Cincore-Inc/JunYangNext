@@ -40,6 +40,13 @@ test('交易对方筛选匹配旧版户名与对方名称，并可组合关键�
   assert.equal(financeFilter(new URLSearchParams({ party: '甲方' }), 'invoices').buyer.$regex, '甲方');
 });
 
+test('交易关键词覆盖旧版名目、户名、渠道及备注', () => {
+  const filter = financeFilter(new URLSearchParams({ q: '测试' }), 'transactions');
+  for (const field of ['name', 'title', 'accountName', 'channel', 'oppositeName', 'oppositeAccountName', 'oppositeChannel', 'note']) {
+    assert.ok(filter.$or.some(entry => entry[field]?.$regex === '测试'), field);
+  }
+});
+
 test('收开票关键词匹配用途、税额和不含税金额', () => {
   for (const kind of ['receipts', 'invoices']) {
     const text = financeFilter(new URLSearchParams({ q: '材料.*' }), kind);
