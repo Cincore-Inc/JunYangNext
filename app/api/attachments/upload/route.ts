@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
-import { coreUrl, requireSession, requirePermission, roleManager } from "@/lib/session";
+import { requireSession, requirePermission, roleManager } from "@/lib/session";
 import { getMongo } from "@/lib/db";
 import { documentType } from "@/lib/upload-file.mjs";
 import { uploadPolicy } from "@/lib/storage";
@@ -18,23 +18,14 @@ export async function POST(request: NextRequest) {
   } catch { return NextResponse.json({ error: "请求来源无效" }, { status: 403 }); }
   const denied = await requireSession(request);
   if (denied) return denied;
-  const token = request.cookies.get("junyang_session")!.value;
   const contentLength = Number(request.headers.get("content-length"));
   if (!contentLength || contentLength > fileManagerMaxSize + 64 * 1024) return NextResponse.json({ error: "文件不能超过 100 MB" }, { status: 413 });
   try {
-    const auth = { Authorization: `JWT ${token}` };
-    let allowed: Record<string, boolean>;
-    if (token.startsWith("v1.")) {
-      allowed = {};
-      for (const permission of ["project_file_upload", "project_file_view", "file_view", "finance_view", "project_bill_view"]) {
-        const result = await requirePermission(request, [permission]);
-        if (result && result.status !== 403) return result;
-        allowed[permission] = !result;
-      }
-    } else {
-      const permissions = await fetch(`${coreUrl}/api/account/mypermission/`, { headers: auth, cache: "no-store", signal: AbortSignal.timeout(8000) });
-      if (!permissions.ok) return NextResponse.json({ error: "无法验证上传权限" }, { status: permissions.status === 401 || permissions.status === 403 ? 403 : 503 });
-      allowed = await permissions.json();
+    const allowed: Record<string, boolean> = {};
+    for (const permission of ["project_file_upload", "project_file_view", "file_view", "finance_view", "project_bill_view"]) {
+      const result = await requirePermission(request, [permission]);
+      if (result && result.status !== 403) return result;
+      allowed[permission] = !result;
     }
     if (await roleManager(request)) { allowed.project_file_upload = true; allowed.project_file_view = true; allowed.file_view = true; allowed.finance_view = true; allowed.project_bill_view = true; }
     const form = await request.formData();

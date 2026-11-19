@@ -19,7 +19,7 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
   const client = await new MongoClient(database.getUri()).connect();
   const base = `http://127.0.0.1:${await freePort()}`;
   const server = spawn('./node_modules/.bin/next', ['start', '--hostname', '127.0.0.1', '--port', new URL(base).port], {
-    env: { ...process.env, MONGODB_URL: database.getUri(), JUNYANG_AUTH_MODE: 'local', JUNYANG_SESSION_SECRET: 'test-secret-at-least-thirty-two-characters', LEGACY_CORE_URL: 'http://127.0.0.1:1', JUNYANG_MYSQL_URL: 'mysql://test', ALI_KEY_ID: 'test', ALI_SECRECT: 'test-secret', ALI_OOS_BUCKET_NAME: 'junyang-files-hangzhou', NODE_OPTIONS: `--require=${process.cwd()}/test/mysql-shim.cjs --require=${process.cwd()}/test/isolated-oss-shim.cjs` }, stdio: 'ignore',
+    env: { ...process.env, MONGODB_URL: database.getUri(), JUNYANG_SESSION_SECRET: 'test-secret-at-least-thirty-two-characters', JUNYANG_MYSQL_URL: 'mysql://test', ALI_KEY_ID: 'test', ALI_SECRECT: 'test-secret', ALI_OOS_BUCKET_NAME: 'junyang-files-hangzhou', NODE_OPTIONS: `--require=${process.cwd()}/test/mysql-shim.cjs --require=${process.cwd()}/test/isolated-oss-shim.cjs` }, stdio: 'ignore',
   });
   try {
     let ready = false;

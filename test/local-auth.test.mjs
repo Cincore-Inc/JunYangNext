@@ -10,7 +10,7 @@ import { join } from 'node:path';
 test('local authentication works without Core and enforces roles', { timeout: 30000 }, async () => {
   const base = 'http://127.0.0.1:3104';
   const logDir = mkdtempSync(join(tmpdir(), 'junyang-auth-test-')); const logFile = join(logDir, 'queries'); writeFileSync(logFile, '');
-  const server = spawn('./node_modules/.bin/next', ['start', '--hostname', '127.0.0.1', '--port', '3104'], { env: { ...process.env, JUNYANG_AUTH_MODE: 'local', JUNYANG_TEST_SESSION_LOG: logFile, JUNYANG_SESSION_SECRET: 'test-secret-at-least-thirty-two-characters', JUNYANG_MYSQL_URL: 'mysql://test', LEGACY_CORE_URL: 'http://127.0.0.1:1', ALI_KEY_ID: 'test', ALI_SECRECT: 'test-secret', ALI_OOS_BUCKET_NAME: 'junyang-files-hangzhou', NODE_OPTIONS: `--require=${process.cwd()}/test/mysql-shim.cjs --require=${process.cwd()}/test/oss-shim.cjs` }, stdio: 'ignore' });
+  const server = spawn('./node_modules/.bin/next', ['start', '--hostname', '127.0.0.1', '--port', '3104'], { env: { ...process.env, JUNYANG_TEST_SESSION_LOG: logFile, JUNYANG_SESSION_SECRET: 'test-secret-at-least-thirty-two-characters', JUNYANG_MYSQL_URL: 'mysql://test', ALI_KEY_ID: 'test', ALI_SECRECT: 'test-secret', ALI_OOS_BUCKET_NAME: 'junyang-files-hangzhou', NODE_OPTIONS: `--require=${process.cwd()}/test/mysql-shim.cjs --require=${process.cwd()}/test/oss-shim.cjs` }, stdio: 'ignore' });
   try {
     let ready = false; for (let i = 0; i < 60; i++) { try { await fetch(base + '/login'); ready = true; break; } catch { await delay(100); } }
     assert.ok(ready);

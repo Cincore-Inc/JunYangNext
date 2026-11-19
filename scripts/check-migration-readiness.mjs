@@ -9,7 +9,7 @@ const check = (name, ok, detail) => {
   if (!ok) failures.push(name);
 };
 
-check('独立认证配置', process.env.JUNYANG_AUTH_MODE !== 'legacy' && (process.env.JUNYANG_SESSION_SECRET?.length || 0) >= 32);
+check('独立认证配置', (process.env.JUNYANG_SESSION_SECRET?.length || 0) >= 32);
 check('对象存储配置', process.env.ALI_OOS_BUCKET_NAME === 'junyang-files-hangzhou' && !!process.env.ALI_KEY_ID && !!process.env.ALI_SECRECT, '仅检查配置，不验证存储访问');
 
 let mongo;
