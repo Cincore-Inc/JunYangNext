@@ -90,6 +90,10 @@ export default function PersonnelDetails({ kind, staffContext }: { kind: Kind; s
     try {
       const values = await form.validateFields(); setSaving(true);
       const selected = editing !== "new" ? editing : null;
+      if (kind === "salary" && selected) {
+        for (const field of ["personal_tax", "deduction"] as const) if (Object.hasOwn(values, field) && (selected[field] == null ? !values[field] : values[field] !== "" && Number(values[field]) === selected[field])) delete values[field];
+        if (!Object.hasOwn(values, "personal_tax") && !Object.hasOwn(values, "deduction")) { setEditing(null); return; }
+      }
       if (kind === "insurance" && selected) for (const field of ["company_pay_date", "persenal_pay_date"] as const) if ((values[field] || "") === (selected[field] || "")) delete values[field];
       const expected = selected && (kind === "certificates" ? { cert_name: selected.cert_name, cert_person_name: selected.cert_person_name, cert_start_date: selected.cert_start_date, cert_end_date: selected.cert_end_date, cert_sure: selected.cert_sure, cert_next_date: selected.cert_next_date, cert_status: selected.cert_status, staff_id: selected.staff } : selected);
       await json(kind === "certificates" ? "/api/personnel/certificate" : "/api/personnel", { method: kind === "certificates" || !selected ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, kind, ...(selected ? { id: selected.id, expected } : {}) }) });
@@ -111,7 +115,7 @@ export default function PersonnelDetails({ kind, staffContext }: { kind: Kind; s
       const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = "insurance-proofs.zip"; link.click(); URL.revokeObjectURL(url);
     } catch (e) { message.error(e instanceof Error ? e.message : "下载失败"); } finally { setSaving(false); }
   };
-  const amount = (name: string, label: string) => <Form.Item name={name} label={label} rules={[{ required: true, pattern: /^(?:0|[1-9]\d{0,8})(?:\.\d{1,2})?$/, message: "请输入非负金额，最多两位小数" }]}><Input inputMode="decimal" /></Form.Item>;
+  const amount = (name: string, label: string) => <Form.Item name={name} label={label} rules={[{ required: !(kind === "salary" && editing && editing !== "new" && (name === "personal_tax" || name === "deduction") && editing[name] == null), pattern: /^(?:0|[1-9]\d{0,8})(?:\.\d{1,2})?$/, message: "请输入非负金额，最多两位小数" }]}><Input inputMode="decimal" /></Form.Item>;
   const columns = kind === "salary" ? [
     { title: "月份", dataIndex: "date", width: 110 }, { title: "工资明细编号", dataIndex: "id", width: 140 }, { title: "员工姓名", dataIndex: "staff_name", width: 120 },
     ...([["salary", "基本工资"], ["personal_tax", "个税"], ["persenal_pay", "个人社保"], ["commission", "提成"], ["deduction", "扣款"], ["real_salary", "实发工资"]] as const).map(([dataIndex, title]) => ({ title, dataIndex, width: 130, render: money })),
