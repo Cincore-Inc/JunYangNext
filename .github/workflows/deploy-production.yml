@@ -96,7 +96,11 @@ jobs:
           set -euo pipefail
           test -d "$DEPLOY_PATH/.git"
           cd "$DEPLOY_PATH"
-          git fetch --prune origin
+          for attempt in 1 2 3; do
+            git fetch --prune origin && break
+            test "$attempt" = 3 && exit 1
+            sleep "$((attempt * 3))"
+          done
           git checkout --detach --force "$DEPLOY_REVISION"
           sudo docker load --input "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
           sudo docker tag "junyang-next:$DEPLOY_REVISION" junyang-next:latest
