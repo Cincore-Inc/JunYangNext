@@ -23,7 +23,7 @@
 
 .money-positive{color:#8b0000;font-variant-numeric:tabular-nums}.money-negative{color:green;font-variant-numeric:tabular-nums}
 
-.finance-filter-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 20px}.finance-filter-grid .filter-field{min-width:0}.finance-filter-grid .filter-field label{width:70px;flex:none}.finance-filter-grid .filter-field .ant-input,.finance-filter-grid .filter-field .ant-input-affix-wrapper,.finance-filter-grid .filter-field .ant-select,.finance-filter-grid .filter-field .ant-picker{width:100%;min-width:0;max-width:none;flex:1}.finance-filter-actions{grid-column:1/-1;justify-self:end}@media(max-width:1200px){.finance-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.finance-filter-grid{grid-template-columns:minmax(0,1fr)}.finance-filter-actions{justify-self:start}}
+.finance-filter-panel{container:finance-filters / inline-size}.finance-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:14px 20px}.finance-filter-grid .filter-field{min-width:0}.finance-filter-grid .filter-field label{width:70px;flex:none}.finance-filter-grid .filter-field .ant-input,.finance-filter-grid .filter-field .ant-input-affix-wrapper,.finance-filter-grid .filter-field .ant-select,.finance-filter-grid .filter-field .ant-picker{width:100%;min-width:0;max-width:none;flex:1}.finance-filter-actions{grid-column:1/-1;justify-self:end}@container finance-filters (max-width:400px){.finance-filter-grid .filter-field{flex-direction:column;align-items:stretch;gap:6px}.finance-filter-grid .filter-field label{width:auto}.finance-filter-grid .filter-field :is(.ant-input,.ant-input-affix-wrapper,.ant-select,.ant-picker){flex:none}.finance-filter-actions{justify-self:start}}
 
 .filter-panel .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));align-items:center;gap:14px 20px}.filter-panel .toolbar .filter-field{min-width:0;width:100%}.filter-panel .toolbar .filter-field > label,.filter-panel .toolbar .filter-field > span:not(.ant-input-affix-wrapper):not(.ant-select){width:78px;flex:none;white-space:nowrap}.filter-panel .toolbar .filter-field > .ant-input,.filter-panel .toolbar .filter-field > .ant-input-affix-wrapper,.filter-panel .toolbar .filter-field > .ant-picker,.filter-panel .toolbar .filter-field > .ant-select{width:100%;min-width:0;max-width:none;flex:1}.filter-panel .toolbar > .ant-space{justify-self:start}.filter-panel{margin-top:0}.project-panel{margin-top:12px}
 
@@ -36,7 +36,6 @@
 
 .dashboard{width:100%;max-width:none;min-width:0}
 .project-info-editor .ant-form-item{margin-bottom:0}
-@media(max-width:1439px){.project-detail-drawer .ant-drawer-content-wrapper{width:80vw!important}}
 .project-info-editor .ant-input-number,.project-info-editor .ant-picker,.project-info-editor .ant-select{width:100%}
 .invoice-create-upload{display:flex;flex-direction:column;gap:12px;margin:16px 0}.invoice-create-upload .summary-note{margin:0;line-height:1.6}
 
