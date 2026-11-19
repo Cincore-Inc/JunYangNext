@@ -28,3 +28,5 @@ npm run dev
 项目编辑与名称同步在管理员权限下进行，名称变更会在事务中更新交易及发票关联名称。项目附件删除仅移除项目关联，保留对象存储中的原文件。发票概览按旧系统的专票、普票口径分列；项目交易概览尚未与旧系统所有汇总维度逐项统一。旧系统普通账号密码以明文保存，新增或修改密码仍沿用该格式，密码修改不会撤销旧系统已签发的令牌。数据库及对象存储仍使用旧系统资源；上传成功但数据库关联失败时可能留下未关联文件。正式替换旧系统前需完成所有权限、备份和业务口径验证。
 
 部署前需对 MySQL 执行 `scripts/migrations/001-company-soft-delete.sql` 和 `scripts/migrations/002-personnel-soft-delete.sql`、`scripts/migrations/003-role-soft-delete.sql`，创建软删除标记表。旧系统不会读取该标记；并行运行期间旧系统仍可能显示已删除的公司。
+
+项目交易明细查询可运行 `node scripts/ensure-finance-indexes.mjs` 创建所需的 MongoDB 索引；脚本会检查已有同键索引，可重复执行。
