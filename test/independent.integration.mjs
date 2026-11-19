@@ -119,13 +119,14 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
     assert.equal((await writeFinance('transfers', 'POST', { ...transfer, action: 'delete', updatedAt: receipt.updatedAt.toISOString() })).status, 200);
     receipt = await receiptCollection.findOne({ _id: verifiedReceipt });
     assert.equal(receipt.status, '已对账'); assert.equal(receipt.transferRecords.length, 0); assert.equal(receipt.deletedTransferRecords.length, 1);
-    for (const kind of ['projects', 'files', 'receipts', 'transactions']) {
+    for (const kind of ['projects', 'files', 'receipts', 'invoices', 'transactions']) {
       let id = projectId;
-      if (kind === 'receipts' || kind === 'transactions') { id = new ObjectId(); await client.db('junyang-finance').collection(kind).insertOne({ _id: id }); }
-      const form = new FormData(); form.set('kind', kind); if (kind !== 'files') form.set('id', String(id)); if (kind === 'projects') form.set('field', 'callerFiles'); form.set('file', new Blob([bytes], { type: 'image/png' }), 'test.png');
-      assert.equal((await fetch(`${base}/api/attachments/upload`, { method: 'POST', headers: { cookie, origin: base }, body: form })).status, 200, kind);
+      if (kind === 'receipts' || kind === 'invoices' || kind === 'transactions') { id = new ObjectId(); await client.db('junyang-finance').collection(kind).insertOne({ _id: id }); }
+      const form = new FormData(); form.set('kind', kind); if (kind !== 'files') form.set('id', String(id)); if (kind === 'projects') form.set('field', 'callerFiles'); if (kind === 'invoices') form.set('field', 'invoices'); form.set('file', new Blob([bytes], { type: 'image/png' }), 'test.png');
+      const upload = await fetch(`${base}/api/attachments/upload`, { method: 'POST', headers: { cookie, origin: base }, body: form });
+      assert.equal(upload.status, 200, `${kind}: ${await upload.text()}`);
       if (kind === 'files') id = (await client.db('junyang-files').collection('files').findOne({ filename: 'test.png' }))._id;
-      const field = kind === 'projects' ? 'callerFiles' : kind === 'files' ? 'filepath' : kind === 'transactions' ? 'receipt' : 'receipts';
+      const field = kind === 'projects' ? 'callerFiles' : kind === 'files' ? 'filepath' : kind === 'transactions' ? 'receipt' : kind === 'invoices' ? 'invoices' : 'receipts';
       const url = `${base}/api/attachments?${new URLSearchParams({ kind, id: String(id), field })}`;
       const preview = await fetch(url, { headers: { cookie } }); assert.equal(preview.status, 200, kind); assert.deepEqual(new Uint8Array(await preview.arrayBuffer()), bytes);
       const download = await fetch(`${url}&download=1`, { headers: { cookie }, redirect: 'manual' }); assert.equal(download.status, 307, kind); assert.match(download.headers.get('location'), /content-disposition/i);

@@ -6,7 +6,7 @@ import { signedFileUrl } from "@/lib/storage";
 import { attachmentFilename } from "@/lib/attachments";
 
 export const dynamic = "force-dynamic";
-const fields: Record<string, string[]> = { receipts: ["receipts", "otherFiles", "contract", "license", "ownerId", "bankCertificate", "transferRecords"], transactions: ["receipt"], projects: ["callerFiles", "bidderFiles", "winnerNotifications", "constructionContracts", "jobContracts", "completeVerifications", "otherFiles"], files: ["filepath"] };
+const fields: Record<string, string[]> = { receipts: ["receipts", "otherFiles", "contract", "license", "ownerId", "bankCertificate", "transferRecords"], invoices: ["invoices"], transactions: ["receipt"], projects: ["callerFiles", "bidderFiles", "winnerNotifications", "constructionContracts", "jobContracts", "completeVerifications", "otherFiles"], files: ["filepath"] };
 
 export async function GET(request: NextRequest) {
   if (!request.cookies.get("junyang_session")?.value) return NextResponse.json({ error: "请先登录" }, { status: 401 });
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const id = params.get("id") || "";
   const index = Number(params.get("index") || 0);
   const transferId = params.get("transferId") || "";
-  const denied = await requirePermission(request, kind === "files" ? ["file_view"] : kind === "projects" ? ["project_file_view"] : kind === "transactions" ? ["finance_view"] : fields[kind] ? ["finance_view", "project_bill_view"] : [], kind === "receipts" ? "any" : "all");
+  const denied = await requirePermission(request, kind === "files" ? ["file_view"] : kind === "projects" ? ["project_file_view"] : kind === "transactions" ? ["finance_view"] : fields[kind] ? ["finance_view", "project_bill_view"] : [], kind === "receipts" || kind === "invoices" ? "any" : "all");
   if (denied) return denied;
   if (!fields[kind]?.includes(field) || !/^[a-f\d]{24}$/i.test(id) || !Number.isInteger(index) || index < 0 || index > 1000) return NextResponse.json({ error: "附件参数无效" }, { status: 400 });
   if (field === "transferRecords" && !/^[a-f\d]{24}$/i.test(transferId)) return NextResponse.json({ error: "附件参数无效" }, { status: 400 });
