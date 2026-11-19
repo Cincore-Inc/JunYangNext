@@ -19,8 +19,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     }
     if (req.url === "/api/account/mypermission/") {
       const token = req.headers.authorization;
-      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
+      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT staff-list-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
       if (token === "JWT certificate-only") return res.end(JSON.stringify({ certificate_view: true, certificate_add: true }));
+      if (token === "JWT staff-list-only") return res.end(JSON.stringify({ staff_view: true }));
       if (token === "JWT item-only") return res.end(JSON.stringify({ staff_view: true, staff_item: true }));
       if (token === "JWT history-only") return res.end(JSON.stringify({ staff_salarydetail: true, staff_insurancedetail: true }));
       if (token === "JWT exam-only") return res.end(JSON.stringify({ exam_view: true }));
@@ -47,7 +48,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
       if (["POST", "PATCH", "DELETE"].includes(req.method)) { for await (const _ of req) { void _; } res.writeHead(req.method === "DELETE" ? 204 : 200); return res.end(); }
     }
     if (req.url === "/api/account/staffname/") {
-      res.writeHead(["JWT test-token", "JWT limited-token", `JWT ${profileToken}`, `JWT ${managerToken}`].includes(req.headers.authorization) ? 200 : 401);
+      res.writeHead(["JWT test-token", "JWT limited-token", "JWT staff-list-only", `JWT ${profileToken}`, `JWT ${managerToken}`].includes(req.headers.authorization) ? 200 : 401);
       return res.end("[]");
     }
     res.writeHead(404); res.end();
@@ -124,6 +125,10 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await fetch(`${base}/api/staff?insurance=FULL&from=2021-01-01&to=2022-12-31`, { headers: auth })).status, 200);
     for (const [query, dateParam] of [['StaffFrom','from'],['StaffTo','to']]) { const params = new URLSearchParams({q:query,status:'__unset__',insurance:'__unset__',[dateParam]:'2026-11-19'}); const result = await fetch(`${base}/api/staff?${params}`, {headers:auth}); assert.equal(result.status,200); assert.equal((await result.json()).items[0].id,52); }
     assert.equal((await fetch(`${base}/api/staff?insurance=__unset__`, { headers: { cookie: limitedCookie } })).status,403);
+    const staffMulti = new URLSearchParams({ q: 'MultiStaff', status: JSON.stringify(['ON','OFF','__unset__']), insurance: JSON.stringify(['NULL','FULL','__unset__']), from: '2026-01-01', to: '2026-12-31', pageSize: '10' });
+    const staffMultiResult = await fetch(`${base}/api/staff?${staffMulti}`, { headers: auth }); assert.equal(staffMultiResult.status, 200); assert.equal((await staffMultiResult.json()).items[0].id, 53);
+    assert.equal((await fetch(`${base}/api/staff?${staffMulti}`, { headers: { cookie: 'junyang_session=staff-list-only' } })).status, 403);
+    for (const value of ['[]','[\"bad\"]','[1]']) assert.equal((await fetch(`${base}/api/staff?status=${encodeURIComponent(value)}`, { headers: auth })).status, 400);
     const staff = await fetch(`${base}/api/staff`, { headers: auth });
     assert.equal(staff.status, 200);
     const staffResult = await staff.json();
