@@ -24,8 +24,9 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('SELECT id, cert_status')) return [[params[0] === 2 ? { id: 2, cert_status: 'ON_HALF', next_date: null } : { id: 1, cert_status: 'OFF', next_date: null }]];
       if (sql.startsWith('SELECT id, itemmessage')) return [[{ id: 1, itemmessage: 'old' }]];
       if (sql.startsWith('SELECT id, username, is_active FROM auth_user')) return [[{ id: params[0], username: 'before', is_active: 1 }]];
-      if (sql.startsWith('SELECT g.name FROM auth_user_groups')) return [params[0] === 123 ? [{ name: 'Role' }, { name: 'Other' }] : [{ name: 'Role' }]];
-      if (sql.startsWith('DELETE FROM auth_user_groups') && params[0] === 123) throw new Error('roles must be preserved');
+      if (sql.startsWith('SELECT g.id, g.name FROM auth_user_groups')) return [params[0] === 123 ? [{ id: 2, name: 'Role' }, { id: 4, name: 'Other' }] : [{ id: 2, name: 'Role' }]];
+      if (sql.startsWith('DELETE FROM auth_user_groups') && (sql !== 'DELETE FROM auth_user_groups WHERE user_id = ? AND group_id = ?' || params[1] !== 2)) throw new Error('only the first role may be replaced');
+      if (sql.startsWith('INSERT IGNORE INTO auth_user_groups') && (params[0] === 123 && params[1] !== 3)) throw new Error('unexpected replacement role');
       if (sql.startsWith('SELECT id, name, phone, position, DATE_FORMAT(entrydate') && sql.includes('FOR UPDATE')) return [params[0] === 999 ? [] : [{id: params[0], name: [2, 3].includes(params[0]) ? 'New Person' : 'Old Person', phone: params[0] === 3 ? null : '123', position: params[0] === 3 ? null : '资料员', entrydate: '2026-11-01', staff_status: 'ON', salary: 5000, percentage: 5}]];
       if (sql.startsWith('SELECT id, name FROM staff_staff')) return [[{ id: 10, name: 'Person' }]];
       if (sql.startsWith('SELECT id, user_id FROM staff_staff')) return [[{ id: params[0], user_id: params[0] === 10 ? null : 1 }]];

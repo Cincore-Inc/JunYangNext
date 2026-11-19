@@ -329,6 +329,8 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const editUser = (headers, expectedGroups = ["Role"]) => fetch(`${base}/api/users`, { method: "PATCH", headers: { ...headers, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 1, username: "changed", password: "new-password", active: false, groupId: 2, expectedUsername: "before", expectedActive: true, expectedGroups }) });
     const preserveRoles = await fetch(`${base}/api/users`, { method: "PATCH", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 123, username: "changed", password: "new-password", active: false, expectedUsername: "before", expectedActive: true, expectedGroups: ["Role", "Other"] }) });
     assert.equal(preserveRoles.status, 200);
+    const replaceFirstRole = await fetch(`${base}/api/users`, { method: "PATCH", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ id: 123, username: "changed", active: false, groupId: 3, expectedUsername: "before", expectedActive: true, expectedGroups: ["Role", "Other"] }) });
+    assert.equal(replaceFirstRole.status, 200);
     assert.equal((await editUser({ cookie: limitedCookie })).status, 403);
     assert.equal((await editUser(auth)).status, 200);
     assert.equal((await editUser(auth, [])).status, 409);

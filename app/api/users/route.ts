@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest) {
       const [users] = await connection.execute<RowDataPacket[]>("SELECT id, username, is_active FROM auth_user WHERE id = ? AND is_superuser = 0 FOR UPDATE", [body.id]);
       if (!users.length) { await connection.rollback(); return NextResponse.json({ error: "账号不存在" }, { status: 404 }); }
       if (users[0].username !== body.expectedUsername || Boolean(users[0].is_active) !== body.expectedActive) { await connection.rollback(); return NextResponse.json({ error: "账号信息已变化，请刷新后重试" }, { status: 409 }); }
-      const [groups] = await connection.execute<RowDataPacket[]>("SELECT g.name FROM auth_user_groups ug JOIN auth_group g ON g.id = ug.group_id WHERE ug.user_id = ? FOR UPDATE", [body.id]);
+      const [groups] = await connection.execute<RowDataPacket[]>("SELECT g.id, g.name FROM auth_user_groups ug JOIN auth_group g ON g.id = ug.group_id WHERE ug.user_id = ? ORDER BY ug.id FOR UPDATE", [body.id]);
       const current = groups.map((group) => String(group.name)).sort();
       if (JSON.stringify(current) !== JSON.stringify([...body.expectedGroups].sort())) { await connection.rollback(); return NextResponse.json({ error: "账号角色已变化，请刷新后重试" }, { status: 409 }); }
       if (body.groupId !== undefined && body.groupId !== null) {
@@ -89,8 +89,8 @@ export async function PATCH(request: NextRequest) {
       await connection.execute("UPDATE auth_user SET username = ?, is_active = ? WHERE id = ?", [body.username, body.active, body.id]);
       if (body.password !== undefined) await connection.execute("UPDATE auth_user SET password = ? WHERE id = ?", [body.password, body.id]);
       if (body.groupId !== undefined) {
-        await connection.execute("DELETE FROM auth_user_groups WHERE user_id = ?", [body.id]);
-        if (body.groupId !== null) await connection.execute("INSERT INTO auth_user_groups (user_id, group_id) VALUES (?, ?)", [body.id, body.groupId]);
+        if (groups.length) await connection.execute("DELETE FROM auth_user_groups WHERE user_id = ? AND group_id = ?", [body.id, groups[0].id]);
+        if (body.groupId !== null) await connection.execute("INSERT IGNORE INTO auth_user_groups (user_id, group_id) VALUES (?, ?)", [body.id, body.groupId]);
       }
       await connection.commit();
       return NextResponse.json({ ok: true });
