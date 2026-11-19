@@ -11,7 +11,7 @@
 
 1. 用受限的部署用户克隆仓库到固定目录，例如 `/srv/junyang-next`；该用户应能读取仓库。
 2. 在该目录创建 `.env.local`，填入 MySQL、MongoDB、OSS 和 `JUNYANG_SESSION_SECRET`。该文件不进入 Git。
-3. 新版以 Docker 容器运行（基础镜像为 Node.js 20 Alpine），无需在主机安装 Node。将容器仅映射到 `127.0.0.1:8010`，由 Nginx 承接公网请求。
+3. 新版以 Docker 容器运行（基础镜像为 Node.js 22），无需在主机安装 Node。将容器仅映射到 `127.0.0.1:8010`，由 Nginx 承接公网请求。
 4. 仅给部署用户授予重建新版容器的免密 sudo 权限，例如：
 
    ```sudoers
