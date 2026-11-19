@@ -3,6 +3,7 @@ import { getMongo } from "@/lib/db";
 import { getMysql } from "@/lib/mysql";
 import { requirePermission } from "@/lib/session";
 import type { RowDataPacket } from "mysql2";
+import { ObjectId } from "mongodb";
 
 const defaultTransactionTypes = ["投标保证金", "中标保证金", "借款", "工程款", "利息", "管理费", "资料费", "承包费", "劳务费", "材料费", "税费", "其他款项"];
 
@@ -19,8 +20,24 @@ export async function GET(request: NextRequest) {
     }
     if (kind === "projects") {
       const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const rows = await (await getMongo()).db("junyang-projects").collection("projects").find(query ? { name: { $regex: escaped, $options: "i" } } : {}, { projection: { name: 1 }, maxTimeMS: 10000 }).sort({ updatedAt: -1, _id: -1 }).limit(50).toArray();
-      return NextResponse.json({ items: rows.map((row) => ({ value: String(row._id), label: row.name || "未命名项目" })) });
+      const client = await getMongo();
+      const projects = client.db("junyang-projects").collection("projects");
+      const rows = await projects.find(query ? { name: { $regex: escaped, $options: "i" } } : {}, { projection: { name: 1 }, maxTimeMS: 10000 }).sort({ updatedAt: -1, _id: -1 }).limit(50).toArray();
+      const items = rows.map((row) => ({ value: String(row._id), label: row.name || "未命名项目" }));
+      const source = request.nextUrl.searchParams.get("source") || "";
+      if (query && request.nextUrl.searchParams.get("historical") === "1") {
+        if (!["transactions", "receipts", "invoices"].includes(source)) return NextResponse.json({ error: "数据类型无效" }, { status: 400 });
+        const refs = await client.db("junyang-finance").collection(source).aggregate([
+          { $match: { "project.value": { $type: "string", $regex: "^[a-fA-F0-9]{24}$" }, $or: [{ "project.label": { $regex: escaped, $options: "i" } }, { "project.name": { $regex: escaped, $options: "i" } }, { "project.value": { $regex: escaped, $options: "i" } }] } },
+          { $group: { _id: "$project.value", label: { $first: { $ifNull: ["$project.label", "$project.name"] } } } },
+        ], { maxTimeMS: 10000, batchSize: 5000 }).toArray();
+        const ids = refs.map((row) => new ObjectId(row._id));
+        const found = ids.length ? await projects.find({ _id: { $in: ids } }, { projection: { _id: 1 }, maxTimeMS: 10000 }).toArray() : [];
+        const known = new Set(found.map((row) => String(row._id)));
+        const listed = new Set(items.map((row) => row.value.toLowerCase()));
+        items.push(...refs.filter((row) => !listed.has(String(row._id).toLowerCase())).slice(0, 50).map((row) => ({ value: String(row._id), label: `${row.label || `未命名项目 ${row._id}`}（${known.has(String(row._id).toLowerCase()) ? "历史名称" : "历史项目"}）` })));
+      }
+      return NextResponse.json({ items });
     }
     if (kind === "companies") {
       const escaped = query.replace(/[\\%_]/g, "\\$&");
