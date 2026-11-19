@@ -19,7 +19,8 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     }
     if (req.url === "/api/account/mypermission/") {
       const token = req.headers.authorization;
-      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT staff-salary-view", "JWT staff-list-only", "JWT item-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
+      res.writeHead(["JWT test-token", "JWT limited-token", "JWT bill-only", "JWT project-role", "JWT staff-only", "JWT staff-salary-view", "JWT staff-list-only", "JWT item-only", "JWT file-read-only", "JWT certificate-only", "JWT salary-tax", "JWT salary-deduction", "JWT exam-only", "JWT exam-result-only", "JWT history-only", `JWT ${managerToken}`, `JWT ${profileToken}`].includes(token) ? 200 : 401, { "content-type": "application/json" });
+      if (token === "JWT file-read-only") return res.end(JSON.stringify({ file_view: true }));
       if (token === "JWT staff-salary-view") return res.end(JSON.stringify({ staff_staff: true, salarydetail_view: true }));
       if (token === "JWT certificate-only") return res.end(JSON.stringify({ certificate_view: true, certificate_add: true }));
       if (token === "JWT staff-list-only") return res.end(JSON.stringify({ staff_view: true }));
@@ -49,7 +50,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
       if (["POST", "PATCH", "DELETE"].includes(req.method)) { for await (const _ of req) { void _; } res.writeHead(req.method === "DELETE" ? 204 : 200); return res.end(); }
     }
     if (req.url === "/api/account/staffname/") {
-      res.writeHead(["JWT test-token", "JWT limited-token", "JWT staff-list-only", `JWT ${profileToken}`, `JWT ${managerToken}`].includes(req.headers.authorization) ? 200 : 401);
+      res.writeHead(["JWT test-token", "JWT limited-token", "JWT staff-list-only", "JWT file-read-only", `JWT ${profileToken}`, `JWT ${managerToken}`].includes(req.headers.authorization) ? 200 : 401);
       return res.end("[]");
     }
     res.writeHead(404); res.end();
@@ -73,6 +74,11 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const limited = await fetch(`${base}/api/session`, { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify({ username: "limited", password: "test" }) });
     const limitedCookie = limited.headers.get("set-cookie").split(";")[0];
     for (const route of ["/api/projects", "/api/finance", "/api/files", "/api/staff"]) assert.equal((await fetch(base + route, { headers: { cookie: limitedCookie } })).status, 403);
+    const fileReader = { cookie: "junyang_session=file-read-only", origin: base, "content-type": "application/json" };
+    for (const method of ["PATCH", "DELETE"]) assert.equal((await fetch(`${base}/api/files`, { method, headers: fileReader, body: JSON.stringify({ id: "000000000000000000000001", updatedAt: null, changes: { note: "test" } }) })).status, 403);
+    for (const [method, path, body] of [["POST", "/api/files/categories", { name: "test" }], ["DELETE", "/api/files/categories", { id: "000000000000000000000001" }]]) assert.equal((await fetch(base + path, { method, headers: fileReader, body: JSON.stringify(body) })).status, 403);
+    const readerUpload = new FormData(); readerUpload.set("kind", "files"); readerUpload.set("file", new Blob(["test"]), "test.txt");
+    assert.equal((await fetch(`${base}/api/attachments/upload`, { method: "POST", headers: { cookie: fileReader.cookie, origin: base }, body: readerUpload })).status, 403);
     for (const route of ['/api/finance?kind=receipts', '/api/finance?kind=invoices&projectId=invalid', '/api/finance?kind=transactions&projectId=000000000000000000000001', '/api/finance/summary?mode=invoiceMatrix&kind=receipts']) assert.equal((await fetch(base + route, { headers: { cookie: 'junyang_session=bill-only' } })).status, 403);
     const syncName = (cookie) => fetch(`${base}/api/projects/invalid/sync-name`, { method: "POST", headers: { cookie, origin: base } });
     assert.equal((await syncName("junyang_session=project-role")).status, 400);
