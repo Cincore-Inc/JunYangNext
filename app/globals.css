@@ -38,7 +38,7 @@
 .project-info-editor .ant-form-item{margin-bottom:0}
 @media(max-width:1439px){.project-detail-drawer .ant-drawer-content-wrapper{width:min(1100px,calc(100vw - 32px))!important}}
 .project-info-editor .ant-input-number,.project-info-editor .ant-picker,.project-info-editor .ant-select{width:100%}
-.invoice-create-upload{margin-top:16px}.invoice-create-upload-label{margin-bottom:8px}
+.invoice-create-upload{display:flex;flex-direction:column;gap:12px;margin:16px 0}.invoice-create-upload .summary-note{margin:0;line-height:1.6}
 
 .project-inline-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}.project-inline-edit-wide{grid-column:1/-1}.project-inline-edit .ant-form-item{margin-bottom:16px}@media(max-width:720px){.project-inline-edit-grid{grid-template-columns:1fr}}
 

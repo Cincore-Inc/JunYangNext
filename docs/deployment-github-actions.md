@@ -3,7 +3,9 @@
 仓库有两条工作流：
 
 - `CI`：推送到 `main` 或创建 PR 时，执行 `npm ci`、lint、构建和隔离集成测试；不会访问生产环境。
-- `Deploy production`：只能手动触发，并且必须输入 `DEPLOY` 确认。它在 GitHub Runner 上重新完成同一套校验，再通过 SSH 将服务器工作树切换到该提交、安装生产依赖、构建并重启服务。
+- `Deploy production`：只能手动触发，并且必须输入 `DEPLOY` 确认。优先复用待发布的完整提交 SHA 对应的成功 push CI；没有成功记录时，在 Runner 上完整校验。然后通过 SSH 将服务器工作树切换到该提交，使用 Docker 缓存构建并重启服务。
+
+基础镜像固定到已部署的 Node.js 22 镜像摘要，避免每次发版解析浮动标签；升级基础镜像时需主动更新 `Dockerfile` 的 `NODE_IMAGE` 默认值。依赖未变时复用 Docker 依赖层，Next.js 编译缓存通过 BuildKit cache mount 保留，首次建立缓存仍需完整编译。服务器日志分别输出代码更新、镜像构建和重启检查耗时。
 
 这套流程不迁移数据库、不会执行 MongoDB 索引脚本，也不会修改 MySQL/OSS 数据。数据库迁移和生产验收应单独执行并留存备份。
 
@@ -38,7 +40,7 @@
 ## 发布步骤
 
 1. 合并通过 CI 的提交到 `main`。
-2. 打开 GitHub 的 `Actions → Deploy production → Run workflow`，选择要发布的 commit/ref。
+2. 打开 GitHub 的 `Actions → Deploy production → Run workflow`，选择要发布的分支、标签或完整 40 位 commit SHA（不使用短 SHA）。
 3. 在确认框输入 `DEPLOY`。
 4. 查看 workflow 的远程健康检查结果；失败时不会切换 Nginx。正式发布前建议使用镜像版本标签和保留上一版镜像，作为回滚基础。
 
