@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
   const q = (request.nextUrl.searchParams.get("q") || "").trim().slice(0, 100).replace(/[\\%_]/g, "\\$&");
   try {
-    const [items] = await getMysql().execute<RowDataPacket[]>("SELECT id, name FROM staff_staff WHERE name LIKE ? ORDER BY id DESC LIMIT 50", [`%${q}%`]);
+    const [items] = await getMysql().execute<RowDataPacket[]>("SELECT id, name FROM staff_staff WHERE name LIKE ? OR name_pinyin LIKE ? ORDER BY id DESC LIMIT 50", [`%${q}%`, `%${q}%`]);
     return NextResponse.json({ items }, { headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "无法读取人员选项" }, { status: 503 }); }
 }

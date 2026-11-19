@@ -156,6 +156,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     const certificateOnly = { cookie: "junyang_session=certificate-only" };
     const staffOptions = await fetch(`${base}/api/staff/options?q=Person`, { headers: certificateOnly });
     assert.equal(staffOptions.status, 200); assert.deepEqual((await staffOptions.json()).items, [{ id: 10, name: "Person" }]);
+    const staffPinyin = await fetch(`${base}/api/staff/options?q=StaffPY`, { headers: certificateOnly }); assert.equal(staffPinyin.status, 200); assert.deepEqual((await staffPinyin.json()).items, [{ id: 11, name: 'Pinyin person' }]);
     assert.equal((await fetch(`${base}/api/staff`, { headers: certificateOnly })).status, 403);
     assert.equal((await fetch(`${base}/api/staff/options`, { headers: { cookie: limitedCookie } })).status, 403);
     assert.equal((await fetch(`${base}/api/staff/options`)).status, 401);
