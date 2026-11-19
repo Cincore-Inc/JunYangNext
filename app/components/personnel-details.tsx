@@ -78,7 +78,10 @@ export default function PersonnelDetails({ kind, staffContext }: { kind: Kind; s
   const open = async (row?: Row) => {
     form.resetFields();
     if (kind === "certificates") {
-      if (!staffContext) await findStaff(row?.cert_person_name || "");
+      if (!staffContext) {
+        await findStaff(row?.staff_name || row?.cert_person_name || "");
+        if (row?.staff) setStaff(previous => [{ id: row.staff, name: row.staff_name || row.cert_person_name || `人员 ${row.staff}` }, ...previous.filter(item => item.id !== row.staff)]);
+      }
       form.setFieldsValue({ staff_id: staffContext?.id || row?.staff, cert_name: row?.cert_name || "", cert_start_date: row?.cert_start_date || "", cert_end_date: row?.cert_end_date || "", cert_sure: row ? row.cert_sure : "ON", cert_next_date: row?.cert_next_date || "", cert_status: row?.cert_status || "" });
     } else if (row) {
       form.setFieldsValue({ personal_tax: row.personal_tax == null ? "" : String(row.personal_tax), deduction: row.deduction == null ? "" : String(row.deduction), company_pay: row.company_pay == null ? "" : String(row.company_pay), persenal_pay: row.persenal_pay == null ? "" : String(row.persenal_pay), persenal_pay_D: row.persenal_pay_D == null ? "" : String(row.persenal_pay_D), insure_pay: row.insure_pay || null, insure_status: row.insure_status || null, company_pay_date: row.company_pay_date || "", persenal_pay_date: row.persenal_pay_date || "" });
