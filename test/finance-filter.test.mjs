@@ -75,6 +75,11 @@ test('未设置状态包含空值及缺失记录', () => {
   assert.deepEqual(filter.ticketStatus, { $in: [null, ''] });
 });
 
+test('交易收支方向可筛选未设置', () => {
+  assert.deepEqual(financeFilter(new URLSearchParams({ direction: '__unset__' }), 'transactions').direction, { $in: [null, ''] });
+  assert.throws(() => financeFilter(new URLSearchParams({ direction: '__unset__' }), 'receipts'));
+});
+
 test('票据分类可组合未设置和其他选项', () => {
   const filter = financeFilter(new URLSearchParams({ type: '["专票","__unset__"]', receiptType: '["__unset__","工程票"]', purpose: '["__unset__","材料成本"]' }), 'receipts');
   assert.deepEqual(filter.ticketClass, { $in: ['专票', null, ''] });
