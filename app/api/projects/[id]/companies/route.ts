@@ -25,9 +25,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const project = await collection.findOne({ _id: new ObjectId(id), updatedAt: version }, { projection: { bidderCompanies: 1 } });
     if (!project || (project.bidderCompanies != null && !Array.isArray(project.bidderCompanies)) || (index !== null && !project.bidderCompanies?.[index]) || (index === null && (project.bidderCompanies?.length || 0) >= 1000)) return NextResponse.json({ error: "项目已变化或投标公司不存在，请刷新后重试" }, { status: 409 });
     const companies = [...(project.bidderCompanies || [])];
-    const entry = { ...(index === null ? { _id: new ObjectId() } : companies[index]), ...Object.fromEntries(textFields.map((key) => [key, body[key].trim()])), ...Object.fromEntries(moneyFields.map((key, i) => [key, Long.fromNumber(amounts[i]!)])), depositRefundDate: date };
+    const original = index === null ? null : companies[index];
+    const entry = { ...(original || { _id: new ObjectId() }) };
+    for (const key of textFields) {
+      const value = body[key].trim();
+      if (!original || value !== (typeof original[key] === "string" ? original[key].trim() : "")) entry[key] = value;
+    }
+    for (const [i, key] of moneyFields.entries()) {
+      const existing = original?.[key] == null ? 0 : Number(original[key]);
+      if (!original || !Number.isSafeInteger(existing) || existing !== amounts[i]) entry[key] = Long.fromNumber(amounts[i]!);
+    }
+    const oldDate = original?.depositRefundDate instanceof Date ? new Date(original.depositRefundDate.getTime() + 28800000).toISOString().slice(0, 10) : "";
+    if (!original || oldDate !== body.depositRefundDate) entry.depositRefundDate = date;
     if (index === null) companies.push(entry); else companies[index] = entry;
-    const result = await collection.updateOne({ _id: new ObjectId(id), updatedAt: version }, { $set: { bidderCompanies: companies, updatedAt: new Date() } });
+    const result = await collection.updateOne({ _id: new ObjectId(id), updatedAt: version }, { $set: { bidderCompanies: companies, updatedAt: new Date(Math.max(Date.now(), version.getTime() + 1)) } });
     return result.matchedCount ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "项目已变化，请刷新后重试" }, { status: 409 });
   } catch { return NextResponse.json({ error: "保存结果未知，请刷新后确认" }, { status: 503 }); }
 }
