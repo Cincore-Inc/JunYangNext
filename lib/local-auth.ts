@@ -45,5 +45,5 @@ export async function localSession(token: string) {
   const administrator = Boolean(user.is_superuser) || groups.some((row) => row.name === "管理");
   const codes = Object.keys(definitions.labels);
   const [permissions] = await db.execute<RowDataPacket[]>(`SELECT DISTINCT p.codename, p.name FROM auth_permission p WHERE p.codename IN (${codes.map(() => "?").join(",")}) AND (p.id IN (SELECT permission_id FROM auth_group_permissions gp JOIN auth_user_groups ug ON ug.group_id = gp.group_id WHERE ug.user_id = ? AND NOT EXISTS (SELECT 1 FROM junyang_deleted_roles d WHERE d.group_id = gp.group_id)) OR p.id IN (SELECT permission_id FROM auth_user_user_permissions WHERE user_id = ?))`, [...codes, user.id, user.id]);
-  return { username: String(user.username), name: String(user.name || ""), administrator, permissions: Object.fromEntries(permissions.filter((row) => (definitions.labels as Record<string, string>)[row.codename] === row.name).map((row) => [String(row.codename), true])) as Record<string, boolean> };
+  return { username: String(user.username), name: String(user.name || ""), administrator, permissions: Object.fromEntries(permissions.filter((row) => typeof row.name === "string" && (definitions.labels as Record<string, string>)[row.codename] === row.name.trim()).map((row) => [String(row.codename), true])) as Record<string, boolean> };
 }
