@@ -9,6 +9,7 @@ try {
   const specs = [
     { collection: 'transactions', name: 'project_transaction_date', key: { 'project.value': 1, transactionDate: -1, _id: -1 } },
     ...['transactions', 'receipts', 'invoices'].map(collection => ({ collection, name: 'created_at_desc', key: { createdAt: -1, _id: -1 } })),
+    ...['transactions', 'receipts', 'invoices'].map(collection => ({ collection, name: 'company_created_at', key: { 'company.value': 1, createdAt: -1, _id: -1 } })),
   ];
   for (const spec of specs) {
     const collection = client.db('junyang-finance').collection(spec.collection);
