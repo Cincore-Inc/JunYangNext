@@ -136,7 +136,8 @@ export async function PATCH(request: NextRequest) {
     if (value === null || value < 0 || value > 100000000000) return NextResponse.json({ error: "请输入有效金额" }, { status: 400 });
     amounts.push(value / 100);
   }
-  if (body.kind === "insurance" && (!["ON", "OFF", null].includes(body.insure_status) || !["FULL", "NULL", "HALF", "HALF-D", null].includes(body.insure_pay) || !["ON", "OFF", null].includes(body.expected.insure_status) || !["FULL", "NULL", "HALF", "HALF-D", null].includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保状态无效" }, { status: 400 });
+  const validInsuranceValue = (value: unknown, expected: unknown, options: (string | null)[]) => options.includes(value as string | null) || (value === "" && expected === "");
+  if (body.kind === "insurance" && (!validInsuranceValue(body.insure_status, body.expected.insure_status, ["ON", "OFF", null]) || !validInsuranceValue(body.insure_pay, body.expected.insure_pay, ["FULL", "NULL", "HALF", "HALF-D", null]) || !["ON", "OFF", null, ""].includes(body.expected.insure_status) || !["FULL", "NULL", "HALF", "HALF-D", null, ""].includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保状态无效" }, { status: 400 });
   const dateFields = body.kind === "insurance" ? ["company_pay_date", "persenal_pay_date"].filter((field) => body[field] !== undefined) : [];
   const validDate = (value: unknown) => value === null || value === "" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value);
   if (dateFields.some((field) => !validDate(body[field]) || !Object.hasOwn(body.expected, field) || !validDate(body.expected[field]))) return NextResponse.json({ error: "缴纳日期无效" }, { status: 400 });
@@ -144,7 +145,8 @@ export async function PATCH(request: NextRequest) {
     const sql = body.kind === "salary"
       ? `UPDATE staff_salarydetail SET ${fields.map((field) => `${field} = ?`).join(", ")}, real_salary = CASE WHEN salary IS NOT NULL AND personal_tax IS NOT NULL AND persenal_pay IS NOT NULL AND commission IS NOT NULL AND deduction IS NOT NULL THEN ROUND(salary - personal_tax - persenal_pay + commission - deduction, 2) ELSE real_salary END WHERE id = ?${fields.map((field) => ` AND ${field} <=> ?`).join("")}`
       : `UPDATE staff_insurancedetail SET company_pay = ?, persenal_pay = ?, persenal_pay_D = ?, insure_status = ?, insure_pay = ?${dateFields.map((field) => `, ${field} = ?`).join("")} WHERE id = ? AND company_pay <=> ? AND persenal_pay <=> ? AND persenal_pay_D <=> ? AND insure_status <=> ? AND insure_pay <=> ?${dateFields.map((field) => ` AND ${field} <=> ?`).join("")}`;
-    const args = body.kind === "salary" ? [...amounts, body.id, ...fields.map((field) => body.expected[field])] : [...amounts, body.insure_status, body.insure_pay, ...dateFields.map((field) => body[field] || null), body.id, ...fields.map((field) => body.expected[field]), body.expected.insure_status, body.expected.insure_pay, ...dateFields.map((field) => body.expected[field] || null)];
+    const preserveEmpty = (value: unknown, expected: unknown) => value === null && expected === "" ? "" : value;
+    const args = body.kind === "salary" ? [...amounts, body.id, ...fields.map((field) => body.expected[field])] : [...amounts, preserveEmpty(body.insure_status, body.expected.insure_status), preserveEmpty(body.insure_pay, body.expected.insure_pay), ...dateFields.map((field) => body[field] || null), body.id, ...fields.map((field) => body.expected[field]), body.expected.insure_status, body.expected.insure_pay, ...dateFields.map((field) => body.expected[field] || null)];
     const [result] = await getMysql().execute<ResultSetHeader>(sql, args);
     if (!result.affectedRows) return NextResponse.json({ error: "记录已变化或不存在，请刷新后重试" }, { status: 409 });
     return NextResponse.json({ ok: true });

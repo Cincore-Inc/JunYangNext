@@ -13,7 +13,7 @@ export default function StaffInsurance({ id, name, onUpdated }: { id: number; na
   const [open, setOpen] = useState(false); const [loading, setLoading] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [original, setOriginal] = useState<Settings | null>(null);
   const show = async () => {
     setOpen(true); setLoading(true); setError(""); setOriginal(null); form.resetFields();
-    try { const data = await json<Settings>(`/api/staff/insurance?id=${id}`); setOriginal(data); form.setFieldsValue({ ...data, ...Object.fromEntries(amounts.map(([field]) => [field, data[field] == null ? null : String(data[field])])) }); }
+    try { const data = await json<Settings>(`/api/staff/insurance?id=${id}`); setOriginal(data); form.setFieldsValue({ ...data, insure_pay: data.insure_pay || null, ...Object.fromEntries(amounts.map(([field]) => [field, data[field] == null ? null : String(data[field])])) }); }
     catch (e) { setError(e instanceof Error ? e.message : "无法读取社保设置"); } finally { setLoading(false); }
   };
   const save = async () => {

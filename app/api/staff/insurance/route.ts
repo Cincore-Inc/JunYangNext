@@ -25,7 +25,8 @@ export async function PATCH(request: NextRequest) {
   if (denied) return denied;
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
-  if (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object" || !(body.insure_pay === null || methods.includes(body.insure_pay)) || !(body.expected.insure_pay === null || methods.includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保设置无效" }, { status: 400 });
+  if (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object" || !(body.insure_pay === null || methods.includes(body.insure_pay) || (body.insure_pay === "" && body.expected.insure_pay === "")) || !(body.expected.insure_pay === null || body.expected.insure_pay === "" || methods.includes(body.expected.insure_pay))) return NextResponse.json({ error: "社保设置无效" }, { status: 400 });
+  const payMethod = body.expected.insure_pay === "" && body.insure_pay === null ? "" : body.insure_pay;
   const amounts: (number | null)[] = [];
   for (const field of fields) {
     if (!(body.expected[field] === null || (typeof body.expected[field] === "number" && Number.isFinite(body.expected[field])))) return NextResponse.json({ error: "记录版本无效" }, { status: 400 });
@@ -35,7 +36,7 @@ export async function PATCH(request: NextRequest) {
     amounts.push(amount === null ? null : amount / 100);
   }
   try {
-    const [result] = await getMysql().execute<ResultSetHeader>("UPDATE staff_staff SET insure_pay = ?, company_pay = ?, persenal_pay = ?, persenal_pay_D = ? WHERE id = ? AND insure_pay <=> ? AND company_pay <=> ? AND persenal_pay <=> ? AND persenal_pay_D <=> ?", [body.insure_pay, ...amounts, body.id, body.expected.insure_pay, ...fields.map((field) => body.expected[field])]);
+    const [result] = await getMysql().execute<ResultSetHeader>("UPDATE staff_staff SET insure_pay = ?, company_pay = ?, persenal_pay = ?, persenal_pay_D = ? WHERE id = ? AND insure_pay <=> ? AND company_pay <=> ? AND persenal_pay <=> ? AND persenal_pay_D <=> ?", [payMethod, ...amounts, body.id, body.expected.insure_pay, ...fields.map((field) => body.expected[field])]);
     return result.affectedRows ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "人员社保设置已变化或不存在，请刷新后重试" }, { status: 409 });
   } catch { return NextResponse.json({ error: "保存结果未知，请刷新后确认" }, { status: 503 }); }
 }

@@ -184,6 +184,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await fetch(`${base}/api/staff/insurance?id=71`, { headers: { cookie: limitedCookie } })).status, 403);
     const insuranceSettings = { id: 71, insure_pay: 'HALF-D', company_pay: '120', persenal_pay: '50', persenal_pay_D: '30', expected: { insure_pay: 'HALF', company_pay: 100, persenal_pay: 50, persenal_pay_D: null } };
     const updateStaffInsurance = (payload, headers = auth) => fetch(`${base}/api/staff/insurance`, { method: 'PATCH', headers: { ...headers, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    assert.equal((await updateStaffInsurance({ id: 75, insure_pay: null, company_pay: '120', persenal_pay: null, persenal_pay_D: null, expected: { insure_pay: '', company_pay: 100, persenal_pay: null, persenal_pay_D: null } })).status, 200);
     assert.equal((await updateStaffInsurance({ id: 72, insure_pay: null, company_pay: '120', persenal_pay: null, persenal_pay_D: null, expected: { insure_pay: null, company_pay: 100, persenal_pay: null, persenal_pay_D: null } })).status, 200);
     assert.equal((await updateStaffInsurance(insuranceSettings, { cookie: limitedCookie })).status, 403);
     assert.equal((await updateStaffInsurance({ ...insuranceSettings, company_pay: '-1' })).status, 400);
@@ -244,6 +245,8 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await updateDetail({ kind: 'salary', id: 1, expected: {} })).status, 400);
     const insurance = { kind: 'insurance', id: 1, company_pay: '100.00', persenal_pay: '0', persenal_pay_D: '30', insure_status: 'ON', insure_pay: 'FULL', expected: { company_pay: null, persenal_pay: 0, persenal_pay_D: 0, insure_status: null, insure_pay: null } };
     assert.equal((await updateDetail(insurance)).status, 200);
+    assert.equal((await updateDetail({ ...insurance, id: 75, insure_status: null, insure_pay: null, expected: { ...insurance.expected, insure_status: '', insure_pay: '' } })).status, 200);
+    assert.equal((await updateDetail({ ...insurance, insure_status: '', expected: { ...insurance.expected, insure_status: 'ON' } })).status, 400);
     const insuranceDates = { ...insurance, id: 71, company_pay_date: '2026-11-15', persenal_pay_date: '', expected: { ...insurance.expected, company_pay_date: '2026-11-01', persenal_pay_date: '2026-11-02' } };
     assert.equal((await updateDetail(insuranceDates, { cookie: limitedCookie })).status, 403);
     assert.equal((await updateDetail({ ...insuranceDates, company_pay_date: '2026-02-30' })).status, 400);
