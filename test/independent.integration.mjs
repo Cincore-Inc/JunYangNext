@@ -28,6 +28,18 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
     const login = await fetch(`${base}/api/session`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username: 'localadmin', password: 'secret-admin' }) });
     assert.equal(login.status, 200);
     const cookie = login.headers.get('set-cookie').split(';')[0];
+    const projects = client.db('junyang-projects').collection('projects');
+    await projects.insertMany([
+      { name: '筛选对照-中标', bidStatus: '已中标', bidMethod: '抽选', winner: '历史中标公司', bidStartTime: new Date('2026-10-15T00:00:00Z'), projectStart: new Date('2026-11-15T00:00:00Z') },
+      { name: '筛选对照-投标中', bidStatus: '投标中', bidMethod: '低价中标', bidStartTime: new Date('2026-10-15T00:00:00Z') },
+    ]);
+    const queryProjects = async (params) => { const response = await fetch(`${base}/api/projects?${new URLSearchParams(params)}`, { headers: { cookie } }); assert.equal(response.status, 200); return response.json(); };
+    assert.equal((await queryProjects({ q: '筛选对照' })).total, 2);
+    assert.equal((await queryProjects({ q: '筛选对照', won: '1' })).total, 1);
+    assert.equal((await queryProjects({ q: '筛选对照', bidMethods: '抽选', from: '2026-10-01', to: '2026-10-31' })).total, 1);
+    assert.equal((await queryProjects({ q: '筛选对照', won: '1', from: '2026-11-01', to: '2026-11-30', winnerExact: '历史中标公司' })).total, 1);
+    const winnerOptions = await fetch(`${base}/api/projects/options?${new URLSearchParams({ q: '历史中标', historical: '1' })}`, { headers: { cookie } });
+    assert.equal(winnerOptions.status, 200); assert.ok((await winnerOptions.json()).items.some(item => item.value === 'legacy:历史中标公司'));
     const createdProject = await fetch(`${base}/api/projects`, { method: 'POST', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ name: '独立测试项目' }) });
     assert.equal(createdProject.status, 200); const createdId = (await createdProject.json()).id;
     const projectCollection = client.db('junyang-projects').collection('projects');
