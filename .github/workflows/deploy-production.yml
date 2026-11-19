@@ -75,6 +75,7 @@ jobs:
             "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_REVISION='$DEPLOY_REVISION' bash -s" <<'REMOTE'
           set -euo pipefail
           test -d "$DEPLOY_PATH/.git"
+          docker info >/dev/null
           cd "$DEPLOY_PATH"
           for attempt in 1 2 3; do
             git fetch --prune origin && break
@@ -83,10 +84,10 @@ jobs:
           done
           git checkout --detach --force "$DEPLOY_REVISION"
           echo 'Building with the server Docker cache'
-          sudo env JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" DOCKER_BUILDKIT=1 docker compose -f docker-compose.production.yml build
-          sudo env JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
+          env JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" DOCKER_BUILDKIT=1 docker compose -f docker-compose.production.yml build
+          env JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
           sleep 2
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 2 http://127.0.0.1:8010/login >/dev/null
-          sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+          docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
           REMOTE
 
