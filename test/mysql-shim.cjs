@@ -39,6 +39,7 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('INSERT INTO staff_itemlist')) { if (params[0] !== 20) throw new Error('missing item list'); return [{ insertId: 1 }]; }
       if (sql.startsWith('SELECT id FROM staff_salarydetail') || sql.startsWith('SELECT id FROM staff_insurancedetail')) return [params[0] === 11 ? [{ id: 1 }] : []];
       if (sql.startsWith('SELECT name FROM staff_staff')) return [[{ name: 'Person' }]];
+      if (sql.startsWith('UPDATE staff_certificate') && params[8] === 75 && JSON.stringify(params.slice(0,8)) !== JSON.stringify([null,'历史姓名',null,'2026-11-19',null,null,null,null])) throw new Error('certificate historical values were overwritten');
       if (sql.startsWith('UPDATE staff_certificate')) return [{ affectedRows: sql.includes('NOT EXISTS') && deletedPersonnel.has('certificates:1') ? 0 : 1 }];
       if (sql.startsWith('UPDATE staff_exam')) return [{ affectedRows: sql.includes('NOT EXISTS') && deletedPersonnel.has('exams:1') ? 0 : 1 }];
       if (sql.startsWith('SELECT name, short_name FROM company_companys')) return [[{ name: 'Test company', short_name: 'Test' }]];

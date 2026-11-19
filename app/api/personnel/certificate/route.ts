@@ -19,7 +19,9 @@ export async function POST(request: NextRequest) {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
   const editing = body.id !== undefined;
-  if ((editing && (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object")) || !Number.isSafeInteger(body.staff_id) || body.staff_id < 1 || typeof body.cert_name !== "string" || !body.cert_name.trim() || body.cert_name.length > 50 || !["ON", "OFF"].includes(body.cert_sure) || !(body.cert_status === "" || isCertificateStatus(body.cert_status)) || ![body.cert_start_date, body.cert_end_date, body.cert_next_date].every(validDate)) return NextResponse.json({ error: "证件信息无效" }, { status: 400 });
+  if (editing && (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object")) return NextResponse.json({ error: "证件信息无效" }, { status: 400 });
+  const staffId = body.staff_id ?? null, sure = body.cert_sure ?? null;
+  if ((!Number.isSafeInteger(staffId) || staffId < 1) && !(editing && staffId === null && body.expected.staff_id === null) || typeof body.cert_name !== "string" || (!body.cert_name.trim() && !(editing && (body.expected.cert_name === null || body.expected.cert_name === ""))) || body.cert_name.length > 50 || (!["ON", "OFF", ...(editing ? [null] : [])].includes(sure) && !(editing && sure === "" && body.expected.cert_sure === "")) || !(body.cert_status === "" || isCertificateStatus(body.cert_status)) || ![body.cert_start_date, body.cert_end_date, body.cert_next_date].every(validDate)) return NextResponse.json({ error: "证件信息无效" }, { status: 400 });
   const changingStatus = editing ? (body.cert_status || null) !== (body.expected.cert_status || null) : Boolean(body.cert_status);
   const denied = await requirePermission(request, ["certificate_view", "certificate_add", ...(changingStatus ? ["certificate_cert_status_change"] : [])]);
   if (denied) return denied;
@@ -27,9 +29,13 @@ export async function POST(request: NextRequest) {
     const connection = await getMysql().getConnection();
     try {
       await connection.beginTransaction();
-      const [staff] = await connection.execute<RowDataPacket[]>("SELECT name FROM staff_staff WHERE id = ? FOR UPDATE", [body.staff_id]);
-      if (!staff.length || !staff[0].name) { await connection.rollback(); return NextResponse.json({ error: "关联人员不存在" }, { status: 400 }); }
-      const values = [body.cert_name.trim(), staff[0].name, body.cert_start_date || null, body.cert_end_date || null, body.cert_sure, body.cert_next_date || null, body.cert_status || null, body.staff_id];
+      let personName = editing && staffId === body.expected.staff_id ? body.expected.cert_person_name : null;
+      if (!editing || staffId !== body.expected.staff_id) {
+        const [staff] = await connection.execute<RowDataPacket[]>("SELECT name FROM staff_staff WHERE id = ? FOR UPDATE", [staffId]);
+        if (!staff.length || !staff[0].name) { await connection.rollback(); return NextResponse.json({ error: "关联人员不存在" }, { status: 400 }); }
+        personName = staff[0].name;
+      }
+      const values = [body.cert_name.trim() || (editing && body.expected.cert_name === "" ? "" : null), personName, body.cert_start_date || null, body.cert_end_date || null, sure, body.cert_next_date || null, body.cert_status || null, staffId];
       if (editing) {
         const expected = fields.map((field) => body.expected[field]);
         if (expected.some((value) => value === undefined || (value !== null && typeof value !== "string" && typeof value !== "number"))) { await connection.rollback(); return NextResponse.json({ error: "记录版本无效" }, { status: 400 }); }

@@ -25,6 +25,11 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     }
     const manager = await login('localadmin', 'secret-admin'); assert.equal(manager.status, 200);
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
+    const certificateEdit = {id:75,staff_id:null,cert_name:'',cert_sure:null,cert_start_date:'',cert_end_date:'2026-11-19',cert_next_date:'',cert_status:'',expected:{staff_id:null,cert_name:null,cert_person_name:'历史姓名',cert_start_date:null,cert_end_date:null,cert_sure:null,cert_next_date:null,cert_status:null}};
+    const editCertificate = (body) => fetch(base+'/api/personnel/certificate', {method:'POST',headers:{cookie:managerCookie,origin:base,'content-type':'application/json'},body:JSON.stringify(body)});
+    assert.equal((await editCertificate(certificateEdit)).status,200);
+    assert.equal((await editCertificate({...certificateEdit,expected:{...certificateEdit.expected,cert_name:'已有证件'}})).status,400);
+    assert.equal((await editCertificate({...certificateEdit,cert_sure:'invalid'})).status,400);
     const insuranceEdit = {kind:'insurance',id:74,company_pay:'',persenal_pay:'12.34',persenal_pay_D:'',insure_pay:null,insure_status:null,company_pay_date:'2026-11-19',expected:{company_pay:null,persenal_pay:12.34,persenal_pay_D:null,insure_pay:null,insure_status:null,company_pay_date:null}};
     const editInsurance = (body) => fetch(base+'/api/personnel', {method:'PATCH',headers:{cookie:managerCookie,origin:base,'content-type':'application/json'},body:JSON.stringify(body)});
     assert.equal((await editInsurance(insuranceEdit)).status,200);
