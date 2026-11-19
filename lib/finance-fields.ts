@@ -11,7 +11,7 @@ export function transactionExtra(body: Record<string, unknown>) {
   const result: Record<string, string> = {};
   for (const key of transactionFields) {
     const value = body[key];
-    if (value !== undefined && (typeof value !== "string" || value.length > 500)) return null;
+    if (value !== undefined && (typeof value !== "string" || value.length > 10000)) return null;
     if (typeof value === "string") result[key] = value.trim();
   }
   return result;
@@ -23,7 +23,7 @@ export function invoiceExtra(body: Record<string, unknown>, kind: "receipts" | "
   const dates = kind === "receipts" ? ["issueDate", "deductDate", "submitDate"] : ["deductDate", "submitDate"];
   for (const key of strings) {
     const value = body[key];
-    if (value !== undefined && (typeof value !== "string" || value.length > 500)) return null;
+    if (value !== undefined && (typeof value !== "string" || value.length > 10000)) return null;
     if (typeof value === "string") result[key] = value.trim();
   }
   for (const key of dates) {
