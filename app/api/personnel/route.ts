@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
   const sort = request.nextUrl.searchParams.get("sort") || "desc";
   const orderBy = request.nextUrl.searchParams.get("orderBy") || "";
   const orderDirection = request.nextUrl.searchParams.get("orderDirection") || "asc";
-  if (kind === "insurance" && ((insurePay && !["FULL", "NULL", "HALF", "HALF-D"].includes(insurePay)) || !["asc", "desc"].includes(sort))) return NextResponse.json({ error: "筛选或排序条件无效" }, { status: 400 });
+  if (kind === "insurance" && ((insurePay && !["FULL", "NULL", "HALF", "HALF-D", "UNSET"].includes(insurePay)) || !["asc", "desc"].includes(sort))) return NextResponse.json({ error: "筛选或排序条件无效" }, { status: 400 });
   if (kind === "exams" && ((orderBy && !["exam_date", "cert_date"].includes(orderBy)) || !["asc", "desc"].includes(orderDirection))) return NextResponse.json({ error: "排序条件无效" }, { status: 400 });
   if (kind === "certificates" && ((orderBy && !["cert_start_date", "cert_end_date", "cert_next_date"].includes(orderBy)) || !["asc", "desc"].includes(orderDirection))) return NextResponse.json({ error: "排序条件无效" }, { status: 400 });
-  if ((month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) || (status && !(kind === "certificates" ? isCertificateStatus(status) : ["ON", "OFF"].includes(status)))) return NextResponse.json({ error: "筛选条件无效" }, { status: 400 });
+  if ((month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) || (status && !(status === "UNSET" || (kind === "certificates" ? isCertificateStatus(status) : ["ON", "OFF"].includes(status))))) return NextResponse.json({ error: "筛选条件无效" }, { status: 400 });
   const params = new URLSearchParams({ page: String(page), page_size: "20" });
   if (q) params.set(kind === "certificates" ? "search_staffname" : kind === "exams" ? "search_name" : "search", q);
   if (month && kind !== "certificates" && kind !== "exams") params.set("date", `${month}-01`);
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
     const sure = request.nextUrl.searchParams.get("sure") || "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
-    if ((sure && !["ON", "OFF"].includes(sure)) || !["cert_start_date", "cert_end_date", "cert_next_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "证件筛选条件无效" }, { status: 400 });
+    if ((sure && !["ON", "OFF", "UNSET"].includes(sure)) || !["cert_start_date", "cert_end_date", "cert_next_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "证件筛选条件无效" }, { status: 400 });
     if (certName) params.set("search", certName);
     if (sure) params.set("cert_sure", sure);
     if (from || to) { params.set("field_date", field); if (from) params.set("start_date", from); if (to) params.set("end_date", to); }
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const field = request.nextUrl.searchParams.get("dateField") || "exam_date";
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
-    if ([examStatus, certStatus].some((value) => value && !["ON", "OFF"].includes(value))) return NextResponse.json({ error: "考试筛选条件无效" }, { status: 400 });
+    if ([examStatus, certStatus].some((value) => value && !["ON", "OFF", "UNSET"].includes(value))) return NextResponse.json({ error: "考试筛选条件无效" }, { status: 400 });
     if (!["exam_date", "cert_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "考试日期范围无效" }, { status: 400 });
     if (examName) params.set("exam_name", examName);
     if (from || to) { params.set("field_date", field); if (from) params.set("start_date", from); if (to) params.set("end_date", to); }
@@ -81,17 +81,17 @@ export async function GET(request: NextRequest) {
     const like = (field: string, value: string) => { if (value) { conditions.push(`${field} LIKE ?`); values.push(`%${value.replace(/[\\%_]/g, "\\$&")}%`); } };
     like(kind === "exams" ? "d.exam_person_name" : "s.name", q);
     if (month && (kind === "salary" || kind === "insurance")) { conditions.push("d.date >= ? AND d.date < DATE_ADD(?, INTERVAL 1 MONTH)"); values.push(`${month}-01`, `${month}-01`); }
-    if (kind === "insurance" && status) { conditions.push("d.insure_status = ?"); values.push(status); }
-    if (kind === "insurance" && insurePay) { conditions.push("d.insure_pay = ?"); values.push(insurePay); }
+    const statusFilter = (field: string, value: string) => { if (value === "UNSET") conditions.push(`(d.${field} IS NULL OR d.${field} = '')`); else if (value) { conditions.push(`d.${field} = ?`); values.push(value); } };
+    if (kind === "insurance") { statusFilter("insure_status", status); statusFilter("insure_pay", insurePay); }
     if (kind === "certificates") {
       like("d.cert_name", params.get("search") || "");
-      for (const field of ["cert_status", "cert_sure"] as const) if (params.has(field)) { conditions.push(`d.${field} = ?`); values.push(params.get(field)!); }
+      for (const field of ["cert_status", "cert_sure"] as const) statusFilter(field, params.get(field) || "");
       if (params.has("start_date")) { conditions.push(`d.${params.get("field_date")} >= ?`); values.push(params.get("start_date")!); }
       if (params.has("end_date")) { conditions.push(`d.${params.get("field_date")} <= ?`); values.push(params.get("end_date")!); }
     }
     if (kind === "exams") {
       like("d.exam_name", params.get("exam_name") || "");
-      for (const field of ["exam_status", "cert_status"] as const) if (params.has(field)) { conditions.push(`d.${field} = ?`); values.push(params.get(field)!); }
+      for (const field of ["exam_status", "cert_status"] as const) statusFilter(field, params.get(field) || "");
       if (params.has("start_date")) { conditions.push(`d.${params.get("field_date")} >= ?`); values.push(params.get("start_date")!); }
       if (params.has("end_date")) { conditions.push(`d.${params.get("field_date")} < DATE_ADD(?, INTERVAL 1 DAY)`); values.push(params.get("end_date")!); }
     }

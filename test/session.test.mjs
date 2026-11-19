@@ -181,6 +181,10 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await fetch(`${base}/api/personnel?kind=salary&pageSize=100`, { headers: auth })).status, 400);
     const insurancePage = await fetch(`${base}/api/personnel?kind=insurance&q=InsuranceCheck&month=2026-11&status=ON&insurePay=HALF&sort=asc&page=2&pageSize=30`, { headers: auth });
     assert.equal(insurancePage.status, 200); assert.equal((await insurancePage.json()).items[0].id, 72);
+    for (const query of ['kind=insurance&status=UNSET&insurePay=UNSET', 'kind=certificates&status=UNSET&sure=UNSET', 'kind=exams&examStatus=UNSET&certStatus=UNSET']) {
+      const result = await fetch(`${base}/api/personnel?${query}&q=UnsetFilter`, { headers: auth }); assert.equal(result.status, 200); assert.equal((await result.json()).items[0].id, 98);
+    }
+    assert.equal((await fetch(`${base}/api/personnel?kind=exams&examStatus=UNSET`, { headers: { cookie: 'junyang_session=exam-only' } })).status, 403);
     for (const query of ['insurePay=bad', 'sort=bad', 'pageSize=50']) assert.equal((await fetch(`${base}/api/personnel?kind=insurance&${query}`, { headers: auth })).status, 400);
     for (const kind of ['exams', 'certificates']) for (const side of ['from', 'to']) { const response = await fetch(`${base}/api/personnel?kind=${kind}&q=OneSide${side === 'to' ? 'To' : 'From'}&${side}=2026-11-19`, { headers: auth }); assert.equal(response.status, 200); assert.equal((await response.json()).items[0].id, 99); }
     const examsPage = await fetch(`${base}/api/personnel?kind=exams&q=ExamPerson&examName=ExamName&examStatus=ON&certStatus=OFF&dateField=cert_date&from=2026-11-01&to=2026-11-30&page=2&pageSize=40`, { headers: auth });
