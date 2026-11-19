@@ -3,7 +3,7 @@ import { attachmentRefs } from "@/lib/attachments";
 import { getMongo } from "@/lib/db";
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
-import { projectTexts, projectUpdate } from "@/lib/project-fields";
+import { projectArrays, projectTexts, projectUpdate } from "@/lib/project-fields";
 import { pinyin } from "pinyin-pro";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!current) return NextResponse.json({ error: "项目已变化或不存在，请刷新后重试" }, { status: 409 });
     for (const key of projectTexts) {
       if (body[key] === current[key]) values[key] = current[key];
+    }
+    for (const key of projectArrays) {
+      if (Array.isArray(current[key]) && body[key].length === current[key].length && body[key].every((item: string, index: number) => item === current[key][index])) values[key] = current[key];
     }
     const name = values.name as string;
     for (const [key, value] of Object.entries(values)) {

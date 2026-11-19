@@ -40,6 +40,7 @@ export async function PATCH(request: NextRequest) {
     }
     const previousDate = existing.date instanceof Date ? new Date(existing.date.getTime() + 8 * 3600000).toISOString().slice(0, 10) : "";
     for (const key of ["issueDate", "deductDate", "submitDate"]) {
+      if (extra[key] === null && existing[key] == null) { delete extra[key]; continue; }
       if (extra[key] instanceof Date && existing[key] instanceof Date && new Date((extra[key] as Date).getTime() + 8 * 3600000).toISOString().slice(0, 10) === new Date(existing[key].getTime() + 8 * 3600000).toISOString().slice(0, 10)) extra[key] = existing[key];
     }
     const now = new Date(Math.max(Date.now(), version.getTime() + 1));
