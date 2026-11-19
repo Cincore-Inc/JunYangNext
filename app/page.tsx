@@ -637,6 +637,7 @@ function Users() {
   const [creating, setCreating] = useState(false);
   const [roleChanged, setRoleChanged] = useState(false);
   const [staff, setStaff] = useState<{ id: number; name: string }[]>([]);
+  const staffRequest = useRef(0);
   const [groups, setGroups] = useState<Group[]>([]);
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -672,11 +673,13 @@ function Users() {
     } catch (e) { message.error(e instanceof Error ? e.message : "无法读取角色列表"); }
   };
   const searchStaff = async (q: string) => {
-    try { const result = await readJSON<{ staff: { id: number; name: string }[] }>(`/api/users?staff=${encodeURIComponent(q)}`); setStaff(result.staff); }
-    catch (e) { message.error(e instanceof Error ? e.message : "无法读取人员列表"); }
+    const current = ++staffRequest.current;
+    try { const result = await readJSON<{ staff: { id: number; name: string }[] }>(`/api/users?staff=${encodeURIComponent(q)}`); if (current === staffRequest.current) setStaff(previous => [...new Map([...previous.filter(item => item.id === form.getFieldValue("staffId")), ...result.staff].map(item => [item.id, item])).values()]); }
+    catch (e) { if (current === staffRequest.current) message.error(e instanceof Error ? e.message : "无法读取人员列表"); }
   };
   const create = async () => {
     try {
+      staffRequest.current++;
       const [roles, people] = await Promise.all([readJSON<{ groups: Group[] }>("/api/groups"), readJSON<{ staff: { id: number; name: string }[] }>("/api/users?staff=")]);
       setGroups(roles.groups); setStaff(people.staff); form.resetFields(); form.setFieldsValue({ active: true }); setRoleChanged(false); setCreating(true);
     } catch (e) { message.error(e instanceof Error ? e.message : "无法读取账号资料"); }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, App, Button, Card, DatePicker, Drawer, Form, Input, Popconfirm, Select, Space, Table, Upload } from "antd";
 import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -57,6 +57,7 @@ export default function PersonnelDetails({ kind, staffContext }: { kind: Kind; s
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [saving, setSaving] = useState(false);
   const [staff, setStaff] = useState<StaffOption[]>(staffContext ? [staffContext] : []);
+  const staffRequest = useRef(0);
   const [preview, setPreview] = useState<{ id: number; field: string; label: string } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Row[]>([]);
   const [batchOpen, setBatchOpen] = useState(false);
@@ -70,8 +71,9 @@ export default function PersonnelDetails({ kind, staffContext }: { kind: Kind; s
   }, [kind, page, pageSize, query, month, status, insurePay, dateSort, orderBy, orderDirection, certFilters, revision, staffId]);
   const refresh = () => { setLoading(true); setError(""); setRevision((value) => value + 1); };
   const findStaff = async (q = "") => {
-    try { const result = await json<{ items: StaffOption[] }>(`/api/staff/options?${new URLSearchParams({ q })}`); setStaff(result.items); }
-    catch (e) { message.error(e instanceof Error ? e.message : "无法读取人员"); }
+    const current = ++staffRequest.current;
+    try { const result = await json<{ items: StaffOption[] }>(`/api/staff/options?${new URLSearchParams({ q })}`); if (current === staffRequest.current) setStaff(previous => [...new Map([...previous.filter(item => item.id === form.getFieldValue("staff_id")), ...result.items].map(item => [item.id, item])).values()]); }
+    catch (e) { if (current === staffRequest.current) message.error(e instanceof Error ? e.message : "无法读取人员"); }
   };
   const open = async (row?: Row) => {
     form.resetFields();
