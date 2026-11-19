@@ -1,4 +1,4 @@
-name: Deploy production
+name: Check and deploy production
 
 on:
   workflow_dispatch:
@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: production-deploy
@@ -23,7 +22,7 @@ concurrency:
 jobs:
   deploy:
     if: inputs.confirm == 'DEPLOY'
-    name: Deploy selected revision
+    name: Check and deploy selected revision
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
@@ -36,40 +35,23 @@ jobs:
         name: Resolve deployed revision
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - id: ci
-        name: Reuse checks for the exact revision
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DEPLOY_REVISION: ${{ steps.revision.outputs.sha }}
-        run: |
-          passed=false
-          if gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f head_sha="$DEPLOY_REVISION" -f event=push -f per_page=1 > "$RUNNER_TEMP/deploy-ci.json"; then
-            if jq -e --arg sha "$DEPLOY_REVISION" '.workflow_runs[0] | .head_sha == $sha and .event == "push" and .conclusion == "success"' "$RUNNER_TEMP/deploy-ci.json" >/dev/null; then
-              passed=true
-            fi
-          fi
-          echo "passed=$passed" >> "$GITHUB_OUTPUT"
-          if [ "$passed" = true ]; then
-            echo 'Exact revision already passed CI; reusing lint, build and integration checks.'
-          else
-            echo 'No successful CI for this revision; running all checks before deployment.'
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.ci.outputs.passed != 'true'
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
-        if: steps.ci.outputs.passed != 'true'
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-node22-${{ hashFiles('package-lock.json') }}-${{ steps.revision.outputs.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-node22-${{ hashFiles('package-lock.json') }}-
+
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
-        if: steps.ci.outputs.passed != 'true'
       - run: npm run build
-        if: steps.ci.outputs.passed != 'true'
       - run: npm run test:integration
-        if: steps.ci.outputs.passed != 'true'
 
       - name: Configure SSH
         env:
