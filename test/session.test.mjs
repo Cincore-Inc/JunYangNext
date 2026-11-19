@@ -169,6 +169,7 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await write({ ...person, id: 2 })).status, 200);
     assert.equal((await write({ ...person, id: 1, salary: null, percentage: null })).status, 200);
     assert.equal((await write({ name: "New Person", id: 1, phone: "", position: "", entrydate: null, staff_status: null })).status, 200);
+    assert.equal((await write({ name: "New Person", id: 3, phone: "", position: "", entrydate: "2026-11-01", staff_status: "ON", expected: { ...staffExpected(3), name: "New Person", phone: null, position: null } })).status, 200);
     assert.equal((await write({ ...person, id: 1, entrydate: "2026-02-30" })).status, 400);
     assert.equal((await write({ ...person, phone: "" })).status, 400);
     const listSalary = await (await fetch(`${base}/api/personnel?kind=salary`, { headers: auth })).json();

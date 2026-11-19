@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         const [existing] = await connection.execute<RowDataPacket[]>(`SELECT id, name, phone, position, DATE_FORMAT(entrydate, '%Y-%m-%d') AS entrydate, staff_status${hasSalary ? ", salary, percentage" : ""} FROM staff_staff WHERE id = ? FOR UPDATE`, [body.id]);
         if (!existing.length) { await connection.rollback(); return NextResponse.json({ error: "人员不存在" }, { status: 404 }); }
         if (expectedFields.some(field => (existing[0][field] ?? null) !== (body.expected[field] ?? null))) { await connection.rollback(); return NextResponse.json({ error: "人员资料已变化，请刷新后重试" }, { status: 409 }); }
-        await connection.execute("UPDATE staff_staff SET name = ?, name_pinyin = ?, phone = ?, position = ?, entrydate = ?, staff_status = ? WHERE id = ?", [data.name, namePinyin, data.phone, data.position, data.entrydate, data.staff_status, body.id]);
+        await connection.execute("UPDATE staff_staff SET name = ?, name_pinyin = ?, phone = ?, position = ?, entrydate = ?, staff_status = ? WHERE id = ?", [data.name, namePinyin, data.phone || (existing[0].phone === null ? null : ""), data.position || (existing[0].position === null ? null : ""), data.entrydate, data.staff_status, body.id]);
         if (hasSalary) await connection.execute("UPDATE staff_staff SET salary = ?, percentage = ? WHERE id = ?", [body.salary, body.percentage, body.id]);
         if (existing[0].name !== data.name) {
           await connection.execute("UPDATE staff_certificate SET cert_person_name = ? WHERE staff_id = ?", [data.name, body.id]);
