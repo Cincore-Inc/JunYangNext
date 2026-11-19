@@ -16,6 +16,7 @@ npm run dev
 金额单位为分，界面换算成元。汇总包含所有记录及所有发票状态（含作废和未对账），与旧系统未过滤的汇总方式一致，不能直接视为有效发票净额。明细支持分页。
 
 可用 `node --env-file=.env.local scripts/verify-invoice-summary.mjs` 只读比较旧版和新版票据汇总的分组及金额；抵扣日期按北京时间归并到月份。脚本不调用页面接口，不能替代筛选及页面交互验收。
+可用 `node --env-file=.env.local scripts/verify-transaction-summary.mjs` 只读比较无筛选交易概览的旧版和新版汇总口径；该脚本不调用页面接口。
 
 ## 旧系统核查（2026-11-19）
 
