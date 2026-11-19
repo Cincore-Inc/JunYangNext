@@ -4,6 +4,8 @@ import { getMysql } from "@/lib/mysql";
 import { requirePermission } from "@/lib/session";
 import type { RowDataPacket } from "mysql2";
 
+const defaultTransactionTypes = ["投标保证金", "中标保证金", "借款", "工程款", "利息", "管理费", "资料费", "承包费", "劳务费", "材料费", "税费", "其他款项"];
+
 export async function GET(request: NextRequest) {
   const denied = await requirePermission(request, ["finance_view"]);
   if (denied) return denied;
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     if (kind === "transactionTypes") {
       const values = await (await getMongo()).db("junyang-finance").collection("transactions").distinct("transactionType", { transactionType: { $type: "string", $ne: "" } }, { maxTimeMS: 10000 });
-      const items = values.filter((value): value is string => typeof value === "string" && !!value.trim()).sort((a, b) => a.localeCompare(b, "zh-CN")).map((value) => ({ value, label: value }));
+      const items = [...new Set([...defaultTransactionTypes, ...values.filter((value): value is string => typeof value === "string" && !!value.trim())])].map((value) => ({ value, label: value }));
       return NextResponse.json({ items });
     }
     if (kind === "projects") {
