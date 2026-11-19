@@ -27,6 +27,13 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
     assert.equal((await (await fetch(base + '/api/session', { headers: { cookie: managerCookie } })).json()).administrator, true);
     assert.equal((await fetch(base + '/api/groups?catalog=1', { headers: { cookie: managerCookie } })).status, 200);
+    const exam = (values) => fetch(base + '/api/personnel/exam', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ exam_name: '', exam_person_name: '', exam_date: '', exam_status: '', cert_date: '', cert_status: '', ...values }) });
+    assert.equal((await exam({})).status, 400);
+    assert.equal((await exam({ exam_name: '仅名称' })).status, 200);
+    assert.equal((await exam({ exam_person_name: 'Person' })).status, 200);
+    assert.equal((await exam({ exam_date: '2026-11-19T10:30' })).status, 200);
+    assert.equal((await exam({ exam_name: '考试', exam_date: '2026-02-30T10:30' })).status, 400);
+    assert.equal((await exam({ id: 1, exam_name: '考试', expected: { exam_name: null, exam_person_name: null, exam_date: null, exam_status: null, cert_date: null, cert_status: null, staff: null } })).status, 200);
     const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aXYAAAAASUVORK5CYII=', 'base64');
     for (const [endpoint, fields] of [['/api/personnel/staff-assets', { staff: '10', kind: 'staff' }], ['/api/personnel/insurance-file', { id: '1', field: 'company_payproof' }]]) {
       const form = new FormData(); for (const [key, value] of Object.entries(fields)) form.set(key, value);

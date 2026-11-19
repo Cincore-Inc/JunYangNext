@@ -17,8 +17,9 @@ export async function POST(request: NextRequest) {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
   const editing = body.id !== undefined;
-  const examDate = dateTime(body.exam_date, true), certDate = dateTime(body.cert_date);
-  if ((editing && (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object")) || (body.staff_id !== undefined && (!Number.isSafeInteger(body.staff_id) || body.staff_id < 1)) || typeof body.exam_name !== "string" || !body.exam_name.trim() || body.exam_name.length > 50 || typeof body.exam_person_name !== "string" || !body.exam_person_name.trim() || body.exam_person_name.length > 15 || examDate === undefined || certDate === undefined || !["", "ON", "OFF"].includes(body.exam_status) || !["", "ON", "OFF"].includes(body.cert_status)) return NextResponse.json({ error: "考试信息无效" }, { status: 400 });
+  const examDate = dateTime(body.exam_date), certDate = dateTime(body.cert_date);
+  if ((editing && (!Number.isSafeInteger(body.id) || body.id < 1 || !body.expected || typeof body.expected !== "object")) || (body.staff_id !== undefined && (!Number.isSafeInteger(body.staff_id) || body.staff_id < 1)) || typeof body.exam_name !== "string" || body.exam_name.length > 50 || typeof body.exam_person_name !== "string" || body.exam_person_name.length > 15 || examDate === undefined || certDate === undefined || !["", "ON", "OFF"].includes(body.exam_status) || !["", "ON", "OFF"].includes(body.cert_status)) return NextResponse.json({ error: "考试信息无效" }, { status: 400 });
+  if (!editing && !body.exam_name.trim() && !body.exam_person_name.trim() && !examDate) return NextResponse.json({ error: "请至少填写考试名称、人员或考试时间中的一项" }, { status: 400 });
   const permissions = ["exam_view"];
   if ((body.exam_status || null) !== (editing ? body.expected.exam_status : null)) permissions.push("exam_exam_status");
   if ((body.cert_status || null) !== (editing ? body.expected.cert_status : null)) permissions.push("exam_cert_status");
@@ -28,9 +29,11 @@ export async function POST(request: NextRequest) {
     const connection = await getMysql().getConnection();
     try {
       await connection.beginTransaction();
-      const [staff] = body.staff_id === undefined ? await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE name = ? ORDER BY id LIMIT 1", [body.exam_person_name.trim()]) : await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE id = ? AND name = ? LIMIT 1", [body.staff_id, body.exam_person_name.trim()]);
+      const person = body.exam_person_name.trim();
+      const unchangedPerson = editing && body.staff_id === undefined && person === (body.expected.exam_person_name || "");
+      const [staff] = unchangedPerson || (!person && body.staff_id === undefined) ? [[]] : body.staff_id === undefined ? await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE name = ? ORDER BY id LIMIT 1", [person]) : await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE id = ? AND name = ? LIMIT 1", [body.staff_id, person]);
       if (body.staff_id !== undefined && !staff.length) { await connection.rollback(); return NextResponse.json({ error: "关联人员不存在或姓名已变化，请刷新后重试" }, { status: 409 }); }
-      const values = [body.exam_name.trim(), body.exam_person_name.trim(), examDate, body.exam_status || null, certDate, body.cert_status || null, staff[0]?.id || null];
+      const values = [body.exam_name.trim() || (editing && body.expected.exam_name === "" ? "" : null), person || (editing && body.expected.exam_person_name === "" ? "" : null), examDate, body.exam_status || null, certDate, body.cert_status || null, unchangedPerson ? body.expected.staff : staff[0]?.id || null];
       if (editing) {
         const expected = [body.expected.exam_name, body.expected.exam_person_name, body.expected.exam_date, body.expected.exam_status, body.expected.cert_date, body.expected.cert_status, body.expected.staff];
         if (expected.some((value) => value === undefined || (value !== null && typeof value !== "string" && typeof value !== "number"))) { await connection.rollback(); return NextResponse.json({ error: "记录版本无效" }, { status: 400 }); }
