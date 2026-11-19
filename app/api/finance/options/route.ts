@@ -24,8 +24,10 @@ export async function GET(request: NextRequest) {
     }
     if (kind === "companies") {
       const escaped = query.replace(/[\\%_]/g, "\\$&");
-      const [rows] = await getMysql().execute<RowDataPacket[]>("SELECT u_id, name, short_name FROM company_companys c WHERE (name LIKE ? OR short_name LIKE ?) AND NOT EXISTS (SELECT 1 FROM junyang_deleted_companies d WHERE d.company_id = c.id) ORDER BY `rank` DESC, id DESC LIMIT 50", [`%${escaped}%`, `%${escaped}%`]);
-      return NextResponse.json({ items: rows.map((row) => ({ value: String(row.u_id).replace(/^(........)(....)(....)(....)(............)$/, "$1-$2-$3-$4-$5"), label: row.short_name || row.name })) });
+      const historical = request.nextUrl.searchParams.get("historical") === "1";
+      const deleted = "EXISTS (SELECT 1 FROM junyang_deleted_companies d WHERE d.company_id = c.id)";
+      const [rows] = await getMysql().execute<RowDataPacket[]>(`SELECT c.u_id, c.name, c.short_name, ${deleted} AS deleted FROM company_companys c WHERE (c.name LIKE ? OR c.short_name LIKE ?)${historical ? "" : ` AND NOT ${deleted}`} ORDER BY c.\`rank\` DESC, c.id DESC LIMIT 50`, [`%${escaped}%`, `%${escaped}%`]);
+      return NextResponse.json({ items: rows.map((row) => ({ value: String(row.u_id).replace(/^(........)(....)(....)(....)(............)$/, "$1-$2-$3-$4-$5"), label: `${row.short_name || row.name}${row.deleted ? "（已删除）" : ""}` })) });
     }
     return NextResponse.json({ error: "选项类型无效" }, { status: 400 });
   } catch { return NextResponse.json({ error: "无法读取选项，请检查数据库连接" }, { status: 503 }); }

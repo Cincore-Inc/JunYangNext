@@ -25,6 +25,11 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     }
     const manager = await login('localadmin', 'secret-admin'); assert.equal(manager.status, 200);
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
+    const companyOptions = async (suffix = '', session = managerCookie) => { const response = await fetch(base + '/api/finance/options?kind=companies&q=OptionCompany' + suffix, { headers: { cookie: session } }); return response; };
+    assert.equal((await companyOptions('&historical=1', cookie)).status, 403);
+    const activeOptions = await (await companyOptions()).json(); assert.deepEqual(activeOptions.items.map(item => item.label), ['OptionCompany']);
+    const historicalOptions = await (await companyOptions('&historical=1')).json(); assert.deepEqual(historicalOptions.items.map(item => item.label), ['OptionCompany', 'OptionCompany old（已删除）']);
+    assert.equal(historicalOptions.items[1].value, '00000000-0000-0000-0000-000000000002');
     const certificateEdit = {id:75,staff_id:null,cert_name:'',cert_sure:null,cert_start_date:'',cert_end_date:'2026-11-19',cert_next_date:'',cert_status:'',expected:{staff_id:null,cert_name:null,cert_person_name:'历史姓名',cert_start_date:null,cert_end_date:null,cert_sure:null,cert_next_date:null,cert_status:null}};
     const editCertificate = (body) => fetch(base+'/api/personnel/certificate', {method:'POST',headers:{cookie:managerCookie,origin:base,'content-type':'application/json'},body:JSON.stringify(body)});
     assert.equal((await editCertificate(certificateEdit)).status,200);
