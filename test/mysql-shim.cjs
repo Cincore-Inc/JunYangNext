@@ -26,12 +26,13 @@ Module._load = function(request, parent, isMain) {
       if (sql.startsWith('SELECT id, username, is_active FROM auth_user')) return [[{ id: params[0], username: 'before', is_active: 1 }]];
       if (sql.startsWith('SELECT g.name FROM auth_user_groups')) return [params[0] === 123 ? [{ name: 'Role' }, { name: 'Other' }] : [{ name: 'Role' }]];
       if (sql.startsWith('DELETE FROM auth_user_groups') && params[0] === 123) throw new Error('roles must be preserved');
+      if (sql.startsWith('SELECT id, name FROM staff_staff WHERE id = ? FOR UPDATE')) return [params[0] === 999 ? [] : [{id: params[0], name: params[0] === 2 ? 'New Person' : 'Old Person'}]];
       if (sql.startsWith('SELECT id, name FROM staff_staff')) return [[{ id: 10, name: 'Person' }]];
       if (sql.startsWith('SELECT id, user_id FROM staff_staff')) return [[{ id: params[0], user_id: params[0] === 10 ? null : 1 }]];
       if (sql.startsWith('SELECT id FROM staff_staff WHERE id = ? AND name = ?')) return [params[0] === 71 && params[1] === 'Person' ? [{id:71}] : []]; if (sql.startsWith('SELECT id FROM staff_staff WHERE name')) return [params[0] === 'Duplicate' ? [{ id: 10 }] : []];
       if (sql.startsWith('SELECT id FROM staff_staff')) return [params[0] === 999 ? [] : [{ id: params[0] }]];
       if (sql.startsWith('INSERT INTO staff_staff')) { if (!sql.includes('phone, position, entrydate') || params[4] !== '资料员') throw new Error('missing staff position'); return [{ insertId: 20 }]; }
-      if (sql.startsWith('UPDATE staff_staff SET name =')) { if (params[0] !== 'New Person' || params[6] !== 1) throw new Error('unexpected staff update'); if (params[2] === '' && (params[3] !== '' || params[4] !== null || params[5] !== null || !sql.includes('position = ?'))) throw new Error('empty staff fields not saved'); return [{ affectedRows: 1 }]; }
+      if (sql.startsWith('UPDATE staff_staff SET name =')) { if (params[0] !== 'New Person' || ![1, 2].includes(params[6])) throw new Error('unexpected staff update'); if (params[2] === '' && (params[3] !== '' || params[4] !== null || params[5] !== null || !sql.includes('position = ?'))) throw new Error('empty staff fields not saved'); return [{ affectedRows: 1 }]; }
       if (sql.startsWith('UPDATE staff_certificate SET cert_person_name')) { if (params[0] !== 'New Person' || params[1] !== 1) throw new Error('missing certificate name propagation'); return [{ affectedRows: 1 }]; }
       if (sql.startsWith('UPDATE staff_exam SET exam_person_name')) { if (params[0] !== 'New Person' || params[1] !== 1) throw new Error('missing exam name propagation'); return [{ affectedRows: 1 }]; }
       if (sql.startsWith('UPDATE staff_exam SET staff_id')) { if (params[0] !== 20 || params[1] !== 'New Person') throw new Error('missing exam association'); return [{ affectedRows: 1 }]; }

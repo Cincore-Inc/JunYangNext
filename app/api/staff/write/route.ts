@@ -49,12 +49,14 @@ export async function POST(request: NextRequest) {
       await connection.beginTransaction();
       const namePinyin = pinyin(data.name, { pattern: "first", toneType: "none", type: "array" }).join("");
       if (isEdit) {
-        const [existing] = await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE id = ? FOR UPDATE", [body.id]);
+        const [existing] = await connection.execute<RowDataPacket[]>("SELECT id, name FROM staff_staff WHERE id = ? FOR UPDATE", [body.id]);
         if (!existing.length) { await connection.rollback(); return NextResponse.json({ error: "人员不存在" }, { status: 404 }); }
         await connection.execute("UPDATE staff_staff SET name = ?, name_pinyin = ?, phone = ?, position = ?, entrydate = ?, staff_status = ? WHERE id = ?", [data.name, namePinyin, data.phone, data.position, data.entrydate, data.staff_status, body.id]);
         if (hasSalary) await connection.execute("UPDATE staff_staff SET salary = ?, percentage = ? WHERE id = ?", [body.salary, body.percentage, body.id]);
-        await connection.execute("UPDATE staff_certificate SET cert_person_name = ? WHERE staff_id = ?", [data.name, body.id]);
-        await connection.execute("UPDATE staff_exam SET exam_person_name = ? WHERE staff_id = ?", [data.name, body.id]);
+        if (existing[0].name !== data.name) {
+          await connection.execute("UPDATE staff_certificate SET cert_person_name = ? WHERE staff_id = ?", [data.name, body.id]);
+          await connection.execute("UPDATE staff_exam SET exam_person_name = ? WHERE staff_id = ?", [data.name, body.id]);
+        }
       } else {
         const [existing] = await connection.execute<RowDataPacket[]>("SELECT id FROM staff_staff WHERE name = ? LIMIT 1 FOR UPDATE", [data.name]);
         if (existing.length) { await connection.rollback(); return NextResponse.json({ error: "员工名重复" }, { status: 409 }); }
