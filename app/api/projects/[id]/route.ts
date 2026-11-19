@@ -46,9 +46,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try { values = projectUpdate(body); } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "项目字段无效" }, { status: 400 }); }
   try {
     const client = await getMongo(); const projects = client.db("junyang-projects").collection("projects");
-    const current = await projects.findOne({ _id: new ObjectId(id), updatedAt }, { projection: { name: 1 } });
+    const current = await projects.findOne({ _id: new ObjectId(id), updatedAt }, { projection: Object.fromEntries(["name", ...Object.keys(values)].map((key) => [key, 1])) });
     if (!current) return NextResponse.json({ error: "项目已变化或不存在，请刷新后重试" }, { status: 409 });
     const name = values.name as string;
+    for (const [key, value] of Object.entries(values)) {
+      if (current[key] == null && (value === "" || value === null || (Array.isArray(value) && value.length === 0))) delete values[key];
+    }
     if (name !== current.name) {
       values.namePY = pinyin(name, { pattern: "first" }).replace(/\s/g, "");
       const session = client.startSession();
