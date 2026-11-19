@@ -41,6 +41,12 @@ jobs:
       - run: npm run build
       - run: npm run test:integration
 
+      - name: Build deploy image
+        run: docker build --tag "junyang-next:${{ github.sha }}" .
+
+      - name: Package deploy image
+        run: docker save "junyang-next:${{ github.sha }}" | gzip > /tmp/junyang-next-image.tar.gz
+
       - name: Configure SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -53,6 +59,16 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+      - name: Transfer deploy image
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_REVISION: ${{ github.sha }}
+        run: |
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          scp -i ~/.ssh/id_deploy -P "$DEPLOY_PORT" -o BatchMode=yes /tmp/junyang-next-image.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
 
       - name: Update application on server
         env:
@@ -74,6 +90,9 @@ jobs:
           cd "$DEPLOY_PATH"
           git fetch --prune origin
           git checkout --detach --force "$DEPLOY_REVISION"
-          sudo docker compose -f docker-compose.production.yml up -d --build
+          sudo docker load --input "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
+          sudo env JUNYANG_IMAGE_TAG="$DEPLOY_REVISION" docker compose -f docker-compose.production.yml up -d --no-build --force-recreate
           curl --fail --silent --show-error --retry 10 --retry-delay 2 http://127.0.0.1:8010/login >/dev/null
+          rm -f "/tmp/junyang-next-$DEPLOY_REVISION.tar.gz"
           REMOTE
+
