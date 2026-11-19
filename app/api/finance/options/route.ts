@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       const escaped = query.replace(/[\\%_]/g, "\\$&");
       const historical = request.nextUrl.searchParams.get("historical") === "1";
       const deleted = "EXISTS (SELECT 1 FROM junyang_deleted_companies d WHERE d.company_id = c.id)";
-      const [rows] = await getMysql().execute<RowDataPacket[]>(`SELECT c.u_id, c.name, c.short_name, ${deleted} AS deleted FROM company_companys c WHERE (c.name LIKE ? OR c.short_name LIKE ?)${historical ? "" : ` AND NOT ${deleted}`} ORDER BY c.\`rank\` DESC, c.id DESC LIMIT 50`, [`%${escaped}%`, `%${escaped}%`]);
+      const [rows] = await getMysql().execute<RowDataPacket[]>(`SELECT c.u_id, c.name, c.short_name, ${deleted} AS deleted FROM company_companys c WHERE (c.name LIKE ? OR c.short_name LIKE ? OR c.name_pinyin LIKE ?)${historical ? "" : ` AND NOT ${deleted}`} ORDER BY c.\`rank\` DESC, c.id DESC LIMIT 50`, [`%${escaped}%`, `%${escaped}%`, `%${escaped}%`]);
       return NextResponse.json({ items: rows.map((row) => ({ value: String(row.u_id).replace(/^(........)(....)(....)(....)(............)$/, "$1-$2-$3-$4-$5"), label: `${row.short_name || row.name}${row.deleted ? "（已删除）" : ""}` })) });
     }
     return NextResponse.json({ error: "选项类型无效" }, { status: 400 });

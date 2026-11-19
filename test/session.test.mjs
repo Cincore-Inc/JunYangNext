@@ -107,6 +107,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
       assert.equal((await response.json()).error, "工程编号无效");
     }
     const adminUsers = await (await fetch(`${base}/api/users`, { headers: auth })).json(); assert.equal(adminUsers.users[0].password, 'mock-secret'); assert.equal(adminUsers.users[0].lastLogin, '2026-11-19T01:30:00Z');
+    const companyOptions = async (historical) => (await (await fetch(`${base}/api/finance/options?kind=companies&q=CompanyPY&historical=${historical}`, { headers: auth })).json()).items;
+    assert.deepEqual((await companyOptions('0')).map(item => item.label), ['Pinyin company']);
+    assert.deepEqual((await companyOptions('1')).map(item => item.label), ['Pinyin company', 'Old pinyin company（已删除）']);
     const companies = await (await fetch(`${base}/api/companies`, { headers: auth })).json(); assert.equal(companies.items[0].name, "Test company");
     assert.deepEqual((await (await fetch(`${base}/api/companies?options=tags`, { headers: auth })).json()).tags, ['Existing Tag', 'Another Tag']);
     assert.equal((await fetch(`${base}/api/companies?options=tags`)).status, 401);
