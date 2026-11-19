@@ -315,7 +315,7 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
       if ((selected.field === "date" || selected.field === "amount") && selected.order) {
         resetLoading(); setSort(selected.field + (selected.order === "ascend" ? "Asc" : "Desc"));
       }
-    }} loading={loading} dataSource={data?.items || []} scroll={{ x: "max-content" }} summary={() => data && <Table.Summary><Table.Summary.Row><Table.Summary.Cell index={0} colSpan={transactions ? 17 : kind === "receipts" ? 26 : 22}><Space wrap size={24}><strong>筛选合计（{data.total} 条）</strong>{!transactions && <><span>不含税金额：<Money value={data.summary.amountWithoutTax} /></span><span>税额：<Money value={data.summary.tax} /></span></>}<span>{transactions ? "交易金额" : "含税金额"}：<Money value={data.summary.amount} /></span></Space></Table.Summary.Cell></Table.Summary.Row></Table.Summary>} pagination={{ current: page, pageSize, total: data?.total || 0, showSizeChanger: true, pageSizeOptions: [2, 25, 50, 100, 200, 300, 400], showTotal: (total) => `共 ${total} 条`, onChange: (value, size) => { setLoading(true); setError(""); setPage(size === pageSize ? value : 1); setPageSize(size); } }} columns={[
+    }} loading={loading} dataSource={data?.items || []} scroll={{ x: "max-content" }} summary={() => data && <Table.Summary><Table.Summary.Row><Table.Summary.Cell index={0} colSpan={transactions ? 17 : kind === "receipts" ? 27 : 23}><Space wrap size={24}><strong>筛选合计（{data.total} 条）</strong>{!transactions && <><span>不含税金额：<Money value={data.summary.amountWithoutTax} /></span><span>税额：<Money value={data.summary.tax} /></span></>}<span>{transactions ? "交易金额" : "含税金额"}：<Money value={data.summary.amount} /></span></Space></Table.Summary.Cell></Table.Summary.Row></Table.Summary>} pagination={{ current: page, pageSize, total: data?.total || 0, showSizeChanger: true, pageSizeOptions: [2, 25, 50, 100, 200, 300, 400], showTotal: (total) => `共 ${total} 条`, onChange: (value, size) => { setLoading(true); setError(""); setPage(size === pageSize ? value : 1); setPageSize(size); } }} columns={[
       { title: "日期", dataIndex: "date", sorter: true, sortDirections: ["descend", "ascend", "descend"], sortOrder: sort.startsWith("date") ? (sort.endsWith("Asc") ? "ascend" : "descend") : null, width: 110, render: date },
       { title: "项目", dataIndex: "project", width: 250 },
       { title: "公司", dataIndex: "company", width: 150 },
@@ -337,6 +337,7 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
         { title: "税率", dataIndex: "taxRate", width: 100 },
         ...(kind === "receipts" ? [{ title: "开票日期", dataIndex: "issueDate", width: 120, render: date }] : []),
         { title: "抵扣月份", dataIndex: "deductDate", width: 120, render: date },
+        { title: "做账月份", dataIndex: "submitDate", width: 120, render: date },
         ...(kind === "receipts" ? [{ title: "交票人", dataIndex: "person", width: 120 }, { title: "发票类型", dataIndex: "receiptType", width: 120 }, { title: "发票用途", dataIndex: "purpose", width: 140 }] : [{ title: "计税方式", dataIndex: "taxCode", width: 120 }]),
       ]),
       { title: "备注", dataIndex: "note", width: 180, render: (value: string) => value ? <span className="table-note" title={value}>{value}</span> : "—" },
@@ -378,6 +379,7 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
           { key: "tax", label: "税额", children: <Money value={selected.tax} /> },
           ...(kind === "receipts" ? [{ key: "issueDate", label: "开票日期", children: date(selected.issueDate) }] : []),
           { key: "deductDate", label: "抵扣月份", children: date(selected.deductDate) },
+          { key: "submitDate", label: "做账月份", children: date(selected.submitDate) },
           { key: "person", label: "交票人", children: selected.person || "—" },
           { key: "receiptType", label: "发票类型", children: selected.receiptType || "—" },
           ...(kind === "receipts" ? [{ key: "storagePlace", label: "存放位置", children: selected.storagePlace || "—" }] : []),
