@@ -130,6 +130,11 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
       const preview = await fetch(url, { headers: { cookie } }); assert.equal(preview.status, 200, kind); assert.deepEqual(new Uint8Array(await preview.arrayBuffer()), bytes);
       const download = await fetch(`${url}&download=1`, { headers: { cookie }, redirect: 'manual' }); assert.equal(download.status, 307, kind); assert.match(download.headers.get('location'), /content-disposition/i);
     }
+    const largeForm = new FormData(); largeForm.set('kind', 'projects'); largeForm.set('id', String(projectId)); largeForm.set('field', 'otherFiles');
+    largeForm.set('file', new Blob([new Uint8Array(11 * 1024 * 1024).fill(65)]), '项目资料.dwg');
+    assert.equal((await fetch(`${base}/api/attachments/upload`, { method: 'POST', headers: { cookie, origin: base }, body: largeForm })).status, 200);
+    const largeDownload = await fetch(`${base}/api/attachments?${new URLSearchParams({ kind: 'projects', id: String(projectId), field: 'otherFiles', download: '1' })}`, { headers: { cookie }, redirect: 'manual' });
+    assert.equal(largeDownload.status, 307); assert.match(decodeURIComponent(new URL(largeDownload.headers.get('location')).searchParams.get('response-content-disposition')), /项目资料\.dwg/);
   } finally {
     server.kill('SIGTERM'); await client.close(); await database.stop();
   }
