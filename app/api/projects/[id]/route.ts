@@ -3,7 +3,7 @@ import { attachmentRefs } from "@/lib/attachments";
 import { getMongo } from "@/lib/db";
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
-import { projectUpdate } from "@/lib/project-fields";
+import { projectTexts, projectUpdate } from "@/lib/project-fields";
 import { pinyin } from "pinyin-pro";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +48,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const client = await getMongo(); const projects = client.db("junyang-projects").collection("projects");
     const current = await projects.findOne({ _id: new ObjectId(id), updatedAt }, { projection: Object.fromEntries(["name", ...Object.keys(values)].map((key) => [key, 1])) });
     if (!current) return NextResponse.json({ error: "项目已变化或不存在，请刷新后重试" }, { status: 409 });
+    for (const key of projectTexts) {
+      if (body[key] === current[key]) values[key] = current[key];
+    }
     const name = values.name as string;
     for (const [key, value] of Object.entries(values)) {
       if (current[key] == null && (value === "" || value === null || (Array.isArray(value) && value.length === 0))) delete values[key];
