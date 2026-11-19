@@ -28,6 +28,18 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
     const login = await fetch(`${base}/api/session`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username: 'localadmin', password: 'secret-admin' }) });
     assert.equal(login.status, 200);
     const cookie = login.headers.get('set-cookie').split(';')[0];
+    const staffLogin = await fetch(`${base}/api/session`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username: 'localstaff', password: 'secret-staff' }) });
+    assert.equal(staffLogin.status, 200);
+    const staffCookie = staffLogin.headers.get('set-cookie').split(';')[0];
+    const staffProfile = await (await fetch(`${base}/api/session`, { headers: { cookie: staffCookie } })).json();
+    assert.equal(staffProfile.administrator, false); assert.equal(staffProfile.permissions.staff_view, true); assert.equal(staffProfile.permissions.finance_view, undefined);
+    assert.equal((await fetch(`${base}/api/staff`, { headers: { cookie: staffCookie } })).status, 200);
+    for (const endpoint of ['/api/projects', '/api/finance?kind=transactions', '/api/files', '/api/users', '/api/groups']) {
+      assert.equal((await fetch(`${base}${endpoint}`, { headers: { cookie: staffCookie } })).status, 403, endpoint);
+    }
+    for (const [endpoint, body] of [['/api/projects', { name: '测试' }], ['/api/finance/create', { kind: 'transactions' }], ['/api/personnel/certificate', { staff_id: 1, cert_name: '测试', cert_sure: 'ON', cert_status: '', cert_start_date: '', cert_end_date: '', cert_next_date: '' }], ['/api/users', { username: 'test', password: 'test', staffId: 1, active: true, groupId: null }]]) {
+      assert.equal((await fetch(`${base}${endpoint}`, { method: 'POST', headers: { cookie: staffCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify(body) })).status, 403, endpoint);
+    }
     const projects = client.db('junyang-projects').collection('projects');
     await projects.insertMany([
       { name: '筛选对照-中标', bidStatus: '已中标', bidMethod: '抽选', winner: '历史中标公司', bidStartTime: new Date('2026-10-15T00:00:00Z'), projectStart: new Date('2026-11-15T00:00:00Z') },
