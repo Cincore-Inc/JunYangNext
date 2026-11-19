@@ -15,15 +15,17 @@ export async function POST(request: NextRequest) {
   if (!Array.isArray(body.ids) || body.ids.length < 1 || body.ids.length > 100 || !body.ids.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0)) return NextResponse.json({ error: "请选择 1–100 条社保记录" }, { status: 400 });
   const ids = [...new Set<number>(body.ids)];
   try {
-    const [rows] = await getMysql().execute<RowDataPacket[]>(`SELECT id, company_payproof, persenal_payproof FROM staff_insurancedetail WHERE id IN (${ids.map(() => "?").join(",")})`, ids);
+    const [rows] = await getMysql().execute<RowDataPacket[]>(`SELECT d.id, d.company_payproof, d.persenal_payproof, s.name AS staff_name, DATE_FORMAT(d.date, '%Y-%m') AS month FROM staff_insurancedetail d LEFT JOIN staff_staff s ON s.id = d.staff_id WHERE d.id IN (${ids.map(() => "?").join(",")})`, ids);
     if (rows.length !== ids.length) return NextResponse.json({ error: "部分社保记录不存在，请刷新后重试" }, { status: 409 });
     const zip = new JSZip(); let total = 0, count = 0;
-    for (const row of rows) for (const [field, label] of [["company_payproof", "company"], ["persenal_payproof", "personal"]]) {
+    for (const row of rows) for (const [field, label] of [["company_payproof", "社保凭证"], ["persenal_payproof", "个人转账凭证"]]) {
       const path = row[field]; if (!path) continue;
       const { response, mime } = await readPersonnelMedia(path);
       const bytes = await response.arrayBuffer(); total += bytes.byteLength;
       if (total > 100 * 1024 * 1024) return NextResponse.json({ error: "文件总大小超过 100 MB，请分批下载" }, { status: 413 });
-      zip.file(`${row.id}-${label}.${({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[mime]}`, bytes); count++;
+      const name = typeof row.staff_name === "string" ? row.staff_name.replace(/[\x00-\x1f\x7f/\\:*?"<>|]/g, "_").trim().slice(0, 50) : "";
+      const month = typeof row.month === "string" && /^\d{4}-\d{2}$/.test(row.month) ? row.month : "月份未设置";
+      zip.file(`${name || "人员未设置"}-${month}-${row.id}-${label}.${({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[mime]}`, bytes); count++;
     }
     if (!count) return NextResponse.json({ error: "所选记录没有凭证" }, { status: 404 });
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });

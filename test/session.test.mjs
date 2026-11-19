@@ -238,9 +238,9 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.equal((await postJson('/api/personnel/certificate-batch', batch, { cookie: limitedCookie })).status, 403);
     assert.equal((await postJson('/api/personnel/certificate-batch', batch)).status, 200);
     assert.equal((await postJson('/api/personnel/certificate-batch', { ...batch, records: [{ id: 1, status: 'ON', nextDate: null }] })).status, 409);
-    const download = await postJson('/api/personnel/insurance-download', { ids: [1] });
+    const download = await postJson('/api/personnel/insurance-download', { ids: [1, 2, 6] });
     assert.equal(download.status, 200);
-    const zip = await JSZip.loadAsync(await download.arrayBuffer()); assert.ok(zip.file('1-company.png'));
+    const zip = await JSZip.loadAsync(await download.arrayBuffer()); assert.ok(zip.file('测试_人员-2026-11-1-社保凭证.png')); assert.ok(zip.file('测试_人员-2026-11-2-社保凭证.webp')); assert.ok(zip.file('人员未设置-月份未设置-6-个人转账凭证.png'));
     assert.equal((await postJson('/api/personnel/insurance-download', { ids: [1] }, { cookie: limitedCookie })).status, 403);
     const itemOnly = { cookie: "junyang_session=item-only" };
     assert.equal((await fetch(`${base}/api/personnel/staff-assets?staff=10&kind=itemlist`, { headers: itemOnly })).status, 200);

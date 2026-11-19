@@ -75,10 +75,10 @@ test('local authentication works without Core and enforces roles', { timeout: 30
       const download = await fetch(base + endpoint + '&download=1', {headers:{cookie:managerCookie}}); assert.match(download.headers.get('content-disposition'), /mock\.bin\.png/);
       assert.equal((await fetch(base + endpoint.replace('id=4','id=5'), {headers:{cookie:managerCookie}})).status,503);
     }
-    const genericArchive = await fetch(base + '/api/personnel/insurance-download', {method:'POST',headers:{cookie:managerCookie,origin:base,'content-type':'application/json'},body:JSON.stringify({ids:[4]})}); assert.equal(genericArchive.status,200); const genericZip=await JSZip.loadAsync(await genericArchive.arrayBuffer()); assert.deepEqual(await genericZip.file('4-company.png').async('nodebuffer'),image);
+    const genericArchive = await fetch(base + '/api/personnel/insurance-download', {method:'POST',headers:{cookie:managerCookie,origin:base,'content-type':'application/json'},body:JSON.stringify({ids:[4]})}); assert.equal(genericArchive.status,200); const genericZip=await JSZip.loadAsync(await genericArchive.arrayBuffer()); assert.deepEqual(await genericZip.file('测试_人员-2026-11-4-社保凭证.png').async('nodebuffer'),image);
     const mixed = await fetch(base + '/api/personnel/insurance-download', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ ids: [2,3] }) });
-    assert.equal(mixed.status,200); const mixedZip = await JSZip.loadAsync(await mixed.arrayBuffer()); assert.equal(await mixedZip.file('2-company.webp').async('string'),'RIFF0000WEBP'); assert.equal(await mixedZip.file('3-company.gif').async('string'),'GIF89a');
+    assert.equal(mixed.status,200); const mixedZip = await JSZip.loadAsync(await mixed.arrayBuffer()); assert.equal(await mixedZip.file('测试_人员-2026-11-2-社保凭证.webp').async('string'),'RIFF0000WEBP'); assert.equal(await mixedZip.file('测试_人员-2026-11-3-社保凭证.gif').async('string'),'GIF89a');
     const archive = await fetch(base + '/api/personnel/insurance-download', { method: 'POST', headers: { cookie: managerCookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ ids: [1] }) });
-    assert.equal(archive.status, 200); const zip = await JSZip.loadAsync(await archive.arrayBuffer()); assert.deepEqual(await zip.file('1-company.png').async('nodebuffer'), image);
+    assert.equal(archive.status, 200); const zip = await JSZip.loadAsync(await archive.arrayBuffer()); assert.deepEqual(await zip.file('测试_人员-2026-11-1-社保凭证.png').async('nodebuffer'), image);
   } finally { server.kill('SIGTERM'); }
 });
