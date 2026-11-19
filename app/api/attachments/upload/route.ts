@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       if (!record) return NextResponse.json({ error: "关联记录不存在" }, { status: 404 });
       if (field === "transferRecords") {
         const transfer = Array.isArray(record.transferRecords) && record.transferRecords.find((item) => String(item._id) === transferId);
-        if (!transfer || record.status === "已对账" || (replace ? typeof transfer.file !== "string" || !transfer.file || (record.archivedAttachments !== undefined && !Array.isArray(record.archivedAttachments)) : Boolean(transfer.file))) return NextResponse.json({ error: "转账记录或凭证已变化，请刷新后重试" }, { status: 409 });
+        if (!transfer || (replace ? typeof transfer.file !== "string" || !transfer.file || (record.archivedAttachments !== undefined && !Array.isArray(record.archivedAttachments)) : Boolean(transfer.file))) return NextResponse.json({ error: "转账记录或凭证已变化，请刷新后重试" }, { status: 409 });
         if (replace) previous = transfer.file;
       }
       const existing = (record as Record<string, unknown>)[field];
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (kind === "files") {
       await collection.insertOne({ filename: file.name.slice(0, 255), filepath: key.slice("files/".length), enabled: true, createdAt: new Date(), updatedAt: new Date() }, { maxTimeMS: 10000 });
     } else if (field === "transferRecords") {
-      const result = await collection.updateOne({ _id: objectId!, status: { $ne: "已对账" }, transferRecords: { $elemMatch: { _id: new ObjectId(transferId as string), ...(previous ? { file: previous } : { $or: [{ file: { $exists: false } }, { file: "" }, { file: { $type: 10 } }] }) } } }, { $set: { "transferRecords.$[item].file": key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, transferId: transferId as string, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { arrayFilters: [{ "item._id": new ObjectId(transferId as string) }], maxTimeMS: 10000 });
+      const result = await collection.updateOne({ _id: objectId!, transferRecords: { $elemMatch: { _id: new ObjectId(transferId as string), ...(previous ? { file: previous } : { $or: [{ file: { $exists: false } }, { file: "" }, { file: { $type: 10 } }] }) } } }, { $set: { "transferRecords.$[item].file": key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, transferId: transferId as string, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { arrayFilters: [{ "item._id": new ObjectId(transferId as string) }], maxTimeMS: 10000 });
       if (!result.matchedCount) return NextResponse.json({ error: "文件已上传，但转账记录已变化；请联系管理员处理" }, { status: 409 });
     } else if (single) {
       const result = await collection.updateOne({ _id: objectId!, ...(previous ? { [field]: previous } : { $or: [{ [field]: { $exists: false } }, { [field]: "" }, { [field]: { $type: 10 } }] }), ...(kind === "transactions" ? { status: { $ne: "已对账" } } : {}) }, { $set: { [field]: key, updatedAt: new Date() }, ...(previous ? { $push: { archivedAttachments: { field, path: previous, replacedAt: new Date(), replacedBy: deletionActor(request) } } } : {}) }, { maxTimeMS: 10000 });

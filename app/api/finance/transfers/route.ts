@@ -31,9 +31,9 @@ export async function POST(request: NextRequest) {
   if (body.action !== "delete" && (amount === null || (body.date !== "" && (!day || Number.isNaN(day.getTime()) || new Date(day.getTime() + 8 * 3600000).toISOString().slice(0, 10) !== body.date)) || typeof body.note !== "string" || body.note.length > 500)) return NextResponse.json({ error: "请正确填写转账记录" }, { status: 400 });
   try {
     const collection = (await getMongo()).db("junyang-finance").collection("receipts");
-    const filter = { _id: new ObjectId(body.receiptId), updatedAt: version, status: { $ne: "已对账" } };
+    const filter = { _id: new ObjectId(body.receiptId), updatedAt: version };
     const row = await collection.findOne(filter, { projection: { transferRecords: 1, deletedTransferRecords: 1 }, maxTimeMS: 10000 });
-    if (!row) return NextResponse.json({ error: "记录已对账或已变化，请刷新后重试" }, { status: 409 });
+    if (!row) return NextResponse.json({ error: "记录已变化，请刷新后重试" }, { status: 409 });
     if (row.transferRecords !== undefined && !Array.isArray(row.transferRecords)) return NextResponse.json({ error: "转账记录格式异常" }, { status: 409 });
     if (row.deletedTransferRecords !== undefined && !Array.isArray(row.deletedTransferRecords)) return NextResponse.json({ error: "删除记录格式异常" }, { status: 409 });
     const records = [...(row.transferRecords || [])];
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       else {
         const original = records[index];
         const oldDate = original.date instanceof Date ? new Date(original.date.getTime() + 8 * 3600000).toISOString().slice(0, 10) : "";
-        records[index] = { ...original, amount: Long.fromNumber(amount!), ...(day ? { date: oldDate === body.date ? original.date : day } : original.date != null ? { date: null } : {}), note: body.note.trim() };
+        records[index] = { ...original, amount: Long.fromNumber(amount!), ...(day ? { date: oldDate === body.date ? original.date : day } : original.date != null ? { date: null } : {}), ...(body.note === (original.note || "") ? {} : { note: body.note.trim() }) };
       }
     }
     const result = await collection.updateOne(filter, { $set: { transferRecords: records, updatedAt: new Date(), ...(deletedRecord ? { deletedTransferRecords: [...(row.deletedTransferRecords || []), deletedRecord] } : {}) } }, { maxTimeMS: 10000 });
