@@ -30,6 +30,9 @@ test('local authentication works without Core and enforces roles', { timeout: 30
     const manager = await login('localadmin', 'secret-admin'); assert.equal(manager.status, 200);
     const managerCookie = manager.headers.get('set-cookie').split(';')[0];
     writeFileSync(logFile, '');
+    assert.equal((await fetch(base + '/api/session', { headers: { cookie: managerCookie } })).status, 200);
+    assert.equal(readFileSync(logFile, 'utf8'), '1');
+    writeFileSync(logFile, '');
     assert.equal((await fetch(base + '/api/users', { headers: { cookie: managerCookie } })).status, 200);
     assert.equal(readFileSync(logFile, 'utf8'), '1');
     assert.equal((await fetch(base + '/api/users', { headers: { cookie: managerCookie } })).status, 200);

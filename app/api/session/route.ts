@@ -1,8 +1,8 @@
-import { coreUrl, requireSession, roleManager } from "@/lib/session";
+import { coreUrl, requestLocalSession, requireSession, roleManager } from "@/lib/session";
 import { NextRequest, NextResponse } from "next/server";
 import { getMysql } from "@/lib/mysql";
 import type { RowDataPacket } from "mysql2";
-import { checkPassword, issueLocalSession, localSession } from "@/lib/local-auth";
+import { checkPassword, issueLocalSession } from "@/lib/local-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const token = request.cookies.get("junyang_session")!.value;
   if (token.startsWith("v1.")) {
     try {
-      const access = await localSession(token);
+      const access = await requestLocalSession(request, token);
       if (!access) return NextResponse.json({ error: "登录已过期，请重新登录" }, { status: 401 });
       return NextResponse.json({ ok: true, ...access, canManageRoles: access.administrator }, { headers: { "Cache-Control": "no-store" } });
     } catch { return NextResponse.json({ error: "权限服务不可用" }, { status: 503 }); }

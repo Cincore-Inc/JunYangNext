@@ -4,7 +4,7 @@ import { localSession } from "@/lib/local-auth";
 export const coreUrl = process.env.LEGACY_CORE_URL || "http://127.0.0.1:28001";
 
 const requestSessions = new WeakMap<NextRequest, ReturnType<typeof localSession>>();
-function requestLocalSession(request: NextRequest, token: string) {
+export function requestLocalSession(request: NextRequest, token: string) {
   let session = requestSessions.get(request);
   if (!session) { session = localSession(token); requestSessions.set(request, session); }
   return session;
