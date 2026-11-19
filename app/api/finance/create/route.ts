@@ -1,0 +1,35 @@
+import { Long } from "mongodb";
+import { NextRequest, NextResponse } from "next/server";
+import { getMongo } from "@/lib/db";
+import { financeReferences } from "@/lib/finance-refs";
+import { parseMoney } from "@/lib/money.mjs";
+import { requirePermission } from "@/lib/session";
+import { sameOrigin } from "@/lib/write-request";
+import { invoiceExtra, transactionExtra } from "@/lib/finance-fields";
+
+export async function POST(request: NextRequest) {
+  if (!sameOrigin(request)) return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
+  const denied = await requirePermission(request, ["finance_view"]);
+  if (denied) return denied;
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
+  const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? new Date(`${body.date}T00:00:00+08:00`) : null;
+  if (!["transactions", "receipts", "invoices"].includes(body.kind) || !day || Number.isNaN(day.getTime()) || new Date(day.getTime() + 8 * 3600000).toISOString().slice(0, 10) !== body.date) return NextResponse.json({ error: "类型或日期无效" }, { status: 400 });
+  const isTransaction = body.kind === "transactions";
+  const amount = parseMoney(body.amount), net = parseMoney(body.amountWithoutTax), tax = parseMoney(body.tax);
+  const extra = transactionExtra(body);
+  const invoiceFields = !isTransaction ? invoiceExtra(body, body.kind) : {};
+  if (isTransaction ? !extra || amount === null || typeof body.type !== "string" || !body.type.trim() || body.type.length > 80 || typeof body.title !== "string" || body.title.length > 200 : !invoiceFields || net === null || tax === null || !Number.isSafeInteger(net + tax) || typeof body.number !== "string" || !body.number.trim() || body.number.length > 100 || typeof body.party !== "string" || body.party.length > 200 || typeof body.ticketClass !== "string" || body.ticketClass.length > 100 || !["有效", "作废", "已抵扣", "未交票", "未设置"].includes(body.ticketStatus)) return NextResponse.json({ error: "请正确填写财务信息" }, { status: 400 });
+  try {
+    const refs = await financeReferences(body.projectId, body.companyId);
+    if (!refs) return NextResponse.json({ error: "项目或公司不存在" }, { status: 400 });
+    const now = new Date();
+    const common = { project: refs.project, company: refs.company, status: "未对账", createdAt: now, updatedAt: now, __v: 0 };
+    const record = isTransaction ? { ...common, ...extra, transactionDate: day, transactionType: body.type.trim(), title: body.title.trim(), amount: Long.fromNumber(amount!), ...(amount === 0 ? {} : { direction: amount! > 0 ? "income" : "outgoing" }) } : { ...common, ...invoiceFields, ...(refs.projectNumber != null ? { projectNumber: refs.projectNumber } : {}), date: day, [body.kind === "receipts" ? "receiptId" : "invoiceId"]: body.number.trim(), [body.kind === "receipts" ? "issuer" : "buyer"]: body.party.trim(), ticketClass: body.ticketClass.trim(), ticketStatus: body.ticketStatus === "未设置" ? null : body.ticketStatus, amountWithoutTax: Long.fromNumber(net!), tax: Long.fromNumber(tax!), amount: Long.fromNumber(net! + tax!), taxRate: (net === 0 ? "0" : (tax! / net! * 100).toFixed(2)) + "%", ...(body.kind === "receipts" ? { receipts: [], otherFiles: [], transferRecords: [] } : {}) };
+    await (await getMongo()).db("junyang-finance").collection(body.kind).insertOne(record, { maxTimeMS: 10000 });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if ((error as { code?: number }).code === 11000) return NextResponse.json({ error: "发票号码已存在" }, { status: 409 });
+    return NextResponse.json({ error: "保存结果未知，请刷新列表确认后再试" }, { status: 503 });
+  }
+}

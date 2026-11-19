@@ -1,0 +1,256 @@
+{
+  "labels": {
+    "panel_view": "看板",
+    "panel_order": "看板页顺序调整",
+    "panel_change": "看板页显示项增减",
+    "project_all": "项目管理",
+    "tbdproject_all_view": "拟投项目",
+    "tbdproject_add": "新建项目",
+    "tbdproject_status_change": "投标按钮",
+    "project_all_view": "投标项目",
+    "project_add": "新建项目",
+    "project_detail": "投标信息",
+    "project_trade_view": "交易管理",
+    "project_trade_detail_view": "款项",
+    "project_fund_all_view": "拨款管理",
+    "project_fund_view": "拨款批次",
+    "project_fund_add": "新增拨款",
+    "fund_bill_view": "管理发票",
+    "project_bill_view": "发票表",
+    "project_file_view": "文件管理",
+    "project_contract_view": "中标合同",
+    "project_file_upload": "上传文件",
+    "project_file_delete": "删除文件",
+    "file_view": "证件管理",
+    "finance_view": "收支管理",
+    "account_all": "账号管理",
+    "user_view": "账号列表",
+    "group_view": "角色列表",
+    "staff_view": "人员管理",
+    "staff_add": "添加员工",
+    "staff_staff": "基本信息",
+    "staff_salarydetail": "工资条",
+    "staff_item": "物品清单",
+    "staff_insurancedetail": "社保缴纳",
+    "staff_insurancedetail_change": "缴纳方式及金额修改",
+    "insurancedetail_view": "人员社保",
+    "insurancedetail_download": "批量下载社保凭证",
+    "insurancedetail_company_payproof": "上传社保凭证",
+    "insurancedetail_persenal_payproof": "上传转账凭证",
+    "salarydetail_view": "人员工资",
+    "salarydetail_commission_change": "修改扣款",
+    "salarydetail_change": "修改",
+    "salarydetail_deduction_change": "个税",
+    "certificate_view": "证件审核",
+    "certificate_add": "添加证书",
+    "certificate_cert_status_change": "确认年审",
+    "exam_view": "考试信息",
+    "exam_exam_status": "考试结果",
+    "exam_cert_status": "领证结果"
+  },
+  "tree": [
+    {
+      "permission": "panel_view",
+      "children": [
+        {
+          "permission": "panel_order",
+          "children": []
+        },
+        {
+          "permission": "panel_change",
+          "children": []
+        }
+      ]
+    },
+    {
+      "permission": "project_all",
+      "children": [
+        {
+          "permission": "tbdproject_all_view",
+          "children": [
+            {
+              "permission": "tbdproject_add",
+              "children": []
+            },
+            {
+              "permission": "tbdproject_status_change",
+              "children": []
+            }
+          ]
+        },
+        {
+          "permission": "project_all_view",
+          "children": [
+            {
+              "permission": "project_add",
+              "children": []
+            },
+            {
+              "permission": "project_detail",
+              "children": []
+            },
+            {
+              "permission": "project_trade_view",
+              "children": [
+                {
+                  "permission": "project_trade_detail_view",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "permission": "project_fund_all_view",
+              "children": [
+                {
+                  "permission": "project_fund_view",
+                  "children": [
+                    {
+                      "permission": "project_fund_add",
+                      "children": []
+                    },
+                    {
+                      "permission": "fund_bill_view",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "permission": "project_bill_view",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "permission": "project_file_view",
+              "children": [
+                {
+                  "permission": "project_contract_view",
+                  "children": []
+                },
+                {
+                  "permission": "project_file_upload",
+                  "children": []
+                },
+                {
+                  "permission": "project_file_delete",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "permission": "file_view",
+      "children": []
+    },
+    {
+      "permission": "finance_view",
+      "children": []
+    },
+    {
+      "permission": "account_all",
+      "children": [
+        {
+          "permission": "user_view",
+          "children": []
+        },
+        {
+          "permission": "group_view",
+          "children": []
+        }
+      ]
+    },
+    {
+      "permission": "staff_view",
+      "children": [
+        {
+          "permission": "staff_add",
+          "children": []
+        },
+        {
+          "permission": "staff_staff",
+          "children": []
+        },
+        {
+          "permission": "staff_salarydetail",
+          "children": []
+        },
+        {
+          "permission": "staff_item",
+          "children": []
+        },
+        {
+          "permission": "staff_insurancedetail",
+          "children": [
+            {
+              "permission": "staff_insurancedetail_change",
+              "children": []
+            }
+          ]
+        },
+        {
+          "permission": "insurancedetail_view",
+          "children": [
+            {
+              "permission": "insurancedetail_download",
+              "children": []
+            },
+            {
+              "permission": "insurancedetail_company_payproof",
+              "children": []
+            },
+            {
+              "permission": "insurancedetail_persenal_payproof",
+              "children": []
+            }
+          ]
+        },
+        {
+          "permission": "salarydetail_view",
+          "children": [
+            {
+              "permission": "salarydetail_commission_change",
+              "children": []
+            },
+            {
+              "permission": "salarydetail_change",
+              "children": []
+            },
+            {
+              "permission": "salarydetail_deduction_change",
+              "children": []
+            }
+          ]
+        },
+        {
+          "permission": "certificate_view",
+          "children": [
+            {
+              "permission": "certificate_add",
+              "children": []
+            },
+            {
+              "permission": "certificate_cert_status_change",
+              "children": []
+            }
+          ]
+        },
+        {
+          "permission": "exam_view",
+          "children": [
+            {
+              "permission": "exam_exam_status",
+              "children": []
+            },
+            {
+              "permission": "exam_cert_status",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
