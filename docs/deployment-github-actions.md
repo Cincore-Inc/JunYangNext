@@ -11,11 +11,11 @@
 
 1. 用受限的部署用户克隆仓库到固定目录，例如 `/srv/junyang-next`；该用户应能读取仓库。
 2. 在该目录创建 `.env.local`，填入 MySQL、MongoDB、OSS 和 `JUNYANG_SESSION_SECRET`。该文件不进入 Git。
-3. 将 Node.js 22 安装在服务器上，并创建 systemd 服务。服务的 `WorkingDirectory` 应为部署目录，`ExecStart` 为 `npm run start`，并使它监听 `127.0.0.1:3100`。
-4. 仅给部署用户授予重启这一个服务的免密 sudo 权限，例如：
+3. 新版以 Docker 容器运行（基础镜像为 Node.js 20 Alpine），无需在主机安装 Node。将容器仅映射到 `127.0.0.1:8010`，由 Nginx 承接公网请求。
+4. 仅给部署用户授予重建新版容器的免密 sudo 权限，例如：
 
    ```sudoers
-   deployuser ALL=(root) NOPASSWD: /bin/systemctl restart junyang-next.service
+   deployuser ALL=(root) NOPASSWD: /usr/bin/docker
    ```
 
 5. 为部署用户建立专用 SSH 密钥；不要复用个人 root 密钥。
@@ -32,7 +32,6 @@
 | `DEPLOY_SSH_KEY` | 专用部署私钥全文 |
 | `DEPLOY_KNOWN_HOSTS` | 服务器 SSH host key 的 `known_hosts` 行，避免运行时 `ssh-keyscan` 信任未知主机 |
 | `DEPLOY_PATH` | 服务器上仓库绝对路径，例如 `/srv/junyang-next` |
-| `DEPLOY_SERVICE` | systemd 服务名，例如 `junyang-next.service` |
 
 不要将 `.env.local`、数据库连接串、OSS Key 或生产管理员密码放入 Actions 变量或仓库文件。
 
@@ -41,6 +40,6 @@
 1. 合并通过 CI 的提交到 `main`。
 2. 打开 GitHub 的 `Actions → Deploy production → Run workflow`，选择要发布的 commit/ref。
 3. 在确认框输入 `DEPLOY`。
-4. 查看 workflow 的远程健康检查结果；失败时服务器服务会保留在重启前的代码还是新代码，取决于失败位置。因此正式发布前建议使用服务管理器的版本目录/回滚策略进行增强。
+4. 查看 workflow 的远程健康检查结果；失败时不会切换 Nginx。正式发布前建议使用镜像版本标签和保留上一版镜像，作为回滚基础。
 
-当前工作流直接切换部署目录的 Git commit，适合第一版独立迁移。完成生产切换后，可再升级为不可变构建产物加原子软链接部署，以支持一键回滚。
+当前工作流直接切换部署目录的 Git commit 并重建容器，适合第一版独立迁移。完成生产切换后，可再升级为不可变镜像标签加原子切换，以支持一键回滚。
