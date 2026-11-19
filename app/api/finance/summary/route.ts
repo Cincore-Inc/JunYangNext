@@ -24,15 +24,17 @@ export async function GET(request: NextRequest) {
     const collection = (await getMongo()).db("junyang-finance").collection(kind!);
     if (transactionMatrix) {
       const conditional = (direction: string, status: string) => ({ $sum: { $cond: [{ $and: [{ $eq: ["$direction", direction] }, { $eq: ["$status", status] }] }, { $ifNull: ["$amount", 0] }, 0] } });
+      const referenceGroup = group === "project" || group === "company";
+      const groupId = referenceGroup ? { $ifNull: [`$${group}.value`, { $concat: ["label:", { $ifNull: [`$${group}.label`, "未设置"] }] }] } : groupFields[group];
       const rows = await collection.aggregate([
         { $match: { ...filter, direction: filter.direction || { $exists: true } } },
-        { $group: { _id: groupFields[group], outgoingUnverified: conditional("outgoing", "未对账"), incomingUnverified: conditional("income", "未对账"), outgoingVerified: conditional("outgoing", "已对账"), incomingVerified: conditional("income", "已对账") } },
+        { $group: { _id: groupId, name: { $first: referenceGroup ? `$${group}.label` : groupFields[group] }, outgoingUnverified: conditional("outgoing", "未对账"), incomingUnverified: conditional("income", "未对账"), outgoingVerified: conditional("outgoing", "已对账"), incomingVerified: conditional("income", "已对账") } },
         { $sort: { _id: 1 } },
       ], { maxTimeMS: 10000 }).toArray();
       return NextResponse.json({ items: rows.map((row, id) => {
         const outgoingUnverified = Number(row.outgoingUnverified), incomingUnverified = Number(row.incomingUnverified), outgoingVerified = Number(row.outgoingVerified), incomingVerified = Number(row.incomingVerified);
         const outgoing = outgoingUnverified + outgoingVerified, incoming = incomingUnverified + incomingVerified;
-        return { id, name: row._id || "未设置", outgoing, incoming, total: outgoing + incoming, outgoingUnverified, incomingUnverified, unverifiedTotal: outgoingUnverified + incomingUnverified, outgoingVerified, incomingVerified, verifiedTotal: outgoingVerified + incomingVerified };
+        return { id, name: row.name || "未设置", outgoing, incoming, total: outgoing + incoming, outgoingUnverified, incomingUnverified, unverifiedTotal: outgoingUnverified + incomingUnverified, outgoingVerified, incomingVerified, verifiedTotal: outgoingVerified + incomingVerified };
       }) }, { headers: { "Cache-Control": "no-store" } });
     }
     if (matrix) {
