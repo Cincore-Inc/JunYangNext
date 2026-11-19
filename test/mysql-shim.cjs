@@ -10,6 +10,8 @@ Module._load = function(request, parent, isMain) {
     async beginTransaction() {}, async commit() {}, async rollback() {}, release() {},
     async execute(sql, params) {
       if (sql.startsWith('INSERT INTO staff_exam') && params[0] === '仅名称' && JSON.stringify(params) !== JSON.stringify(['仅名称', null, null, null, null, null, null])) throw new Error('partial exam fields were not preserved');
+      if (sql.startsWith('SELECT id, name, short_name, credit_code, address, legal_person') && sql.includes('FOR UPDATE')) return [params[0] === 999 ? [] : [{ id: 1, name: 'Test company', short_name: null, credit_code: null, address: null, legal_person: null, legal_person_code: null, phone: null, license_info: null, remark: null, report_deadline: null, rank: null }]];
+      if (sql.startsWith('SELECT t.name FROM company_companys_tags')) return [[]];
       if (sql.startsWith('INSERT INTO company_companys ')) return [{insertId: 1}];
       if (sql.startsWith('SELECT id FROM company_companys')) return [params[0] === 999 ? [] : [{id: 1}]];
       if (sql.startsWith('SELECT company_id FROM junyang_deleted_companies')) return [deletedCompanies.has(params[0]) ? [{company_id:params[0]}] : []];

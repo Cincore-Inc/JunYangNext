@@ -54,11 +54,14 @@ async function write(request: NextRequest, method: "POST" | "PATCH" | "DELETE") 
     } catch { return NextResponse.json({ error: "删除结果未知，请刷新后确认" }, { status: 503 }); }
   }
   const strings = ["short_name", "credit_code", "address", "legal_person", "legal_person_code", "phone", "license_info", "remark"] as const;
+  const expectedFields = ["name", ...strings, "report_deadline", "rank"] as const;
+  const expected = body.expected as Record<string, unknown> | undefined;
+  if (method === "PATCH" && (!expected || typeof expected !== "object" || expectedFields.some(field => !Object.hasOwn(expected, field)) || !Array.isArray(expected.tags_txt_list) || expected.tags_txt_list.some(tag => typeof tag !== "string"))) return NextResponse.json({ error: "请刷新公司资料后重试" }, { status: 400 });
   if (strings.some((key) => body[key] != null && (typeof body[key] !== "string" || (body[key] as string).length > (["remark", "license_info"].includes(key) ? 2000 : 99))) || (body.tags !== undefined && (!Array.isArray(body.tags) || body.tags.length > 50 || !body.tags.every((tag) => typeof tag === "string" && tag.trim() && tag.length <= 99))) || (body.rank != null && (!Number.isSafeInteger(body.rank) || Number(body.rank) < -2147483648 || Number(body.rank) > 2147483647))) return NextResponse.json({ error: "公司资料无效" }, { status: 400 });
   const deadline = body.report_deadline;
   if (deadline && (typeof deadline !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(new Date(`${deadline}T00:00:00Z`).getTime()) || new Date(`${deadline}T00:00:00Z`).toISOString().slice(0, 10) !== deadline)) return NextResponse.json({ error: "年报日期无效" }, { status: 400 });
   const name = (body.name as string).trim();
-  const values = [name, pinyin(name, { pattern: "first" }).replace(/\s/g, ""), ...strings.map((field) => typeof body[field] === "string" && body[field] ? body[field] as string : null), typeof deadline === "string" && deadline ? deadline : null, typeof body.rank === "number" ? body.rank : 0];
+  const values = [name, pinyin(name, { pattern: "first" }).replace(/\s/g, ""), ...strings.map((field) => typeof body[field] === "string" && body[field] ? body[field] as string : null), typeof deadline === "string" && deadline ? deadline : null, typeof body.rank === "number" ? body.rank : method === "PATCH" ? null : 0];
   try {
     const connection = await getMysql().getConnection();
     try {
@@ -68,10 +71,13 @@ async function write(request: NextRequest, method: "POST" | "PATCH" | "DELETE") 
         const [created] = await connection.execute<ResultSetHeader>("INSERT INTO company_companys (name, name_pinyin, short_name, credit_code, address, legal_person, legal_person_code, phone, license_info, remark, report_deadline, `rank`, report_status, create_at, u_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, UTC_TIMESTAMP(6), ?)", [...values, randomUUID().replace(/-/g, "")]);
         companyId = created.insertId;
       } else {
-        const [existing] = await connection.execute<RowDataPacket[]>("SELECT id FROM company_companys WHERE id = ? FOR UPDATE", [companyId]);
+        const [existing] = await connection.execute<RowDataPacket[]>("SELECT id, name, short_name, credit_code, address, legal_person, legal_person_code, phone, license_info, remark, DATE_FORMAT(report_deadline, '%Y-%m-%d') AS report_deadline, `rank` FROM company_companys WHERE id = ? FOR UPDATE", [companyId]);
         if (!existing.length) { await connection.rollback(); return NextResponse.json({ error: "公司不存在" }, { status: 404 }); }
         const [deleted] = await connection.execute<RowDataPacket[]>("SELECT company_id FROM junyang_deleted_companies WHERE company_id = ?", [companyId]);
         if (deleted.length) { await connection.rollback(); return NextResponse.json({ error: "公司已删除" }, { status: 409 }); }
+        const [currentTags] = await connection.execute<RowDataPacket[]>("SELECT t.name FROM company_companys_tags ct JOIN company_tags t ON t.id = ct.tags_id WHERE ct.companys_id = ?", [companyId]);
+        const tags = currentTags.map(row => row.name).sort();
+        if (expectedFields.some(field => (existing[0][field] ?? null) !== (expected![field] ?? null)) || JSON.stringify(tags) !== JSON.stringify([...(expected!.tags_txt_list as string[])].sort())) { await connection.rollback(); return NextResponse.json({ error: "公司资料已变化，请刷新后重试" }, { status: 409 }); }
         await connection.execute("UPDATE company_companys SET name=?, name_pinyin=?, short_name=?, credit_code=?, address=?, legal_person=?, legal_person_code=?, phone=?, license_info=?, remark=?, report_deadline=?, `rank`=? WHERE id=?", [...values, companyId]);
       }
       if (Array.isArray(body.tags)) {
