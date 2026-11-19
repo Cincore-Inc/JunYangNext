@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const page = Math.max(1, Math.min(10000, Number.parseInt(request.nextUrl.searchParams.get("page") || "1", 10) || 1));
     const size = Number(request.nextUrl.searchParams.get("pageSize") || "25");
-    if (![25, 50, 100, 200, 300, 400].includes(size)) return NextResponse.json({ error: "每页条数无效" }, { status: 400 });
+    if (![2, 25, 50, 100, 200, 300, 400].includes(size)) return NextResponse.json({ error: "每页条数无效" }, { status: 400 });
     const query = (request.nextUrl.searchParams.get("q") || "").trim().slice(0, 100);
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const status = (request.nextUrl.searchParams.get("status") || "").slice(0, 100);
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const parseDate = (value: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null; const d = new Date(`${value}T00:00:00+08:00`); return !Number.isNaN(d.getTime()) && new Date(d.getTime() + 28800000).toISOString().slice(0,10) === value ? d : null; };
     const endFrom = request.nextUrl.searchParams.get("endFrom") || "", endTo = request.nextUrl.searchParams.get("endTo") || "";
     const start = from ? parseDate(from) : null, end = to ? parseDate(to) : null, finishStart = endFrom ? parseDate(endFrom) : null, finishEnd = endTo ? parseDate(endTo) : null;
-    if ((from && !start) || (to && !end) || (endFrom && !finishStart) || (endTo && !finishEnd) || (start && end && start > end) || (finishStart && finishEnd && finishStart > finishEnd)) return NextResponse.json({ error: "开标日期无效" }, { status: 400 });
+    if ((from && !start) || (to && !end) || (endFrom && !finishStart) || (endTo && !finishEnd) || (start && end && start > end) || (finishStart && finishEnd && finishStart > finishEnd)) return NextResponse.json({ error: won ? "开工或完工日期无效" : "开标日期无效" }, { status: 400 });
     const sortKey = request.nextUrl.searchParams.get("sort") || "createdDesc";
     const sorts = { createdDesc: { createdAt: -1, _id: -1 }, updatedDesc: { updatedAt: -1, _id: -1 }, updatedAsc: { updatedAt: 1, _id: 1 }, numberDesc: { projectNumber: -1, _id: -1 }, numberAsc: { projectNumber: 1, _id: 1 }, nameAsc: { name: 1, _id: 1 }, nameDesc: { name: -1, _id: -1 } } as const;
     const sort = sorts[sortKey as keyof typeof sorts] || sorts.createdDesc;
