@@ -101,6 +101,11 @@ test("login, session validation, protected routes and logout", { timeout: 30000 
     assert.match(cookie, /HttpOnly/i);
     assert.match(cookie, /SameSite=strict/i);
     const auth = { cookie: cookie.split(";")[0] };
+    for (const kind of ["receipts", "invoices"]) for (const projectNumber of [-1, 1.5, "88"]) {
+      const response = await fetch(`${base}/api/finance/create`, { method: "POST", headers: { ...auth, origin: base, "content-type": "application/json" }, body: JSON.stringify({ kind, projectNumber }) });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error, "工程编号无效");
+    }
     const adminUsers = await (await fetch(`${base}/api/users`, { headers: auth })).json(); assert.equal(adminUsers.users[0].password, 'mock-secret'); assert.equal(adminUsers.users[0].lastLogin, '2026-11-19T01:30:00Z');
     const companies = await (await fetch(`${base}/api/companies`, { headers: auth })).json(); assert.equal(companies.items[0].name, "Test company");
     assert.deepEqual((await (await fetch(`${base}/api/companies?options=tags`, { headers: auth })).json()).tags, ['Existing Tag', 'Another Tag']);
