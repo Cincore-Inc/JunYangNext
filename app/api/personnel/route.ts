@@ -13,6 +13,13 @@ const config = {
   exams: { endpoint: "exam", permission: "exam_view", fields: ["id", "staff", "exam_name", "exam_person_name", "exam_date", "exam_date_version", "exam_status", "cert_date", "cert_date_version", "cert_status"] },
 } as const;
 
+function validSelection(raw: string, valid: (value: string) => boolean) {
+  if (!raw) return true;
+  let selected: unknown = [raw];
+  if (raw.startsWith("[")) { try { selected = JSON.parse(raw); } catch { return false; } }
+  return Array.isArray(selected) && selected.length > 0 && selected.length <= 20 && selected.every(value => typeof value === "string" && valid(value));
+}
+
 export async function GET(request: NextRequest) {
   const kind = request.nextUrl.searchParams.get("kind") as keyof typeof config;
   if (!Object.hasOwn(config, kind)) return NextResponse.json({ error: "类型无效" }, { status: 400 });
@@ -34,10 +41,10 @@ export async function GET(request: NextRequest) {
   const sort = request.nextUrl.searchParams.get("sort") || "desc";
   const orderBy = request.nextUrl.searchParams.get("orderBy") || "";
   const orderDirection = request.nextUrl.searchParams.get("orderDirection") || "asc";
-  if (kind === "insurance" && ((insurePay && !["FULL", "NULL", "HALF", "HALF-D", "UNSET"].includes(insurePay)) || !["asc", "desc"].includes(sort))) return NextResponse.json({ error: "筛选或排序条件无效" }, { status: 400 });
+  if (kind === "insurance" && (!validSelection(insurePay, value => ["FULL", "NULL", "HALF", "HALF-D", "UNSET"].includes(value)) || !["asc", "desc"].includes(sort))) return NextResponse.json({ error: "筛选或排序条件无效" }, { status: 400 });
   if (kind === "exams" && ((orderBy && !["exam_date", "cert_date"].includes(orderBy)) || !["asc", "desc"].includes(orderDirection))) return NextResponse.json({ error: "排序条件无效" }, { status: 400 });
   if (kind === "certificates" && ((orderBy && !["cert_start_date", "cert_end_date", "cert_next_date"].includes(orderBy)) || !["asc", "desc"].includes(orderDirection))) return NextResponse.json({ error: "排序条件无效" }, { status: 400 });
-  if ((month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) || (status && !(status === "UNSET" || (kind === "certificates" ? isCertificateStatus(status) : ["ON", "OFF"].includes(status))))) return NextResponse.json({ error: "筛选条件无效" }, { status: 400 });
+  if ((month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) || !validSelection(status, value => value === "UNSET" || (kind === "certificates" ? isCertificateStatus(value) : ["ON", "OFF"].includes(value)))) return NextResponse.json({ error: "筛选条件无效" }, { status: 400 });
   const params = new URLSearchParams({ page: String(page), page_size: "20" });
   if (q) params.set(kind === "certificates" ? "search_staffname" : kind === "exams" ? "search_name" : "search", q);
   if (month && kind !== "certificates" && kind !== "exams") params.set("date", `${month}-01`);
@@ -48,7 +55,7 @@ export async function GET(request: NextRequest) {
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
     const sure = request.nextUrl.searchParams.get("sure") || "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
-    if ((sure && !["ON", "OFF", "UNSET"].includes(sure)) || !["cert_start_date", "cert_end_date", "cert_next_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "证件筛选条件无效" }, { status: 400 });
+    if (!validSelection(sure, value => ["ON", "OFF", "UNSET"].includes(value)) || !["cert_start_date", "cert_end_date", "cert_next_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "证件筛选条件无效" }, { status: 400 });
     if (certName) params.set("search", certName);
     if (sure) params.set("cert_sure", sure);
     if (from || to) { params.set("field_date", field); if (from) params.set("start_date", from); if (to) params.set("end_date", to); }
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
     const field = request.nextUrl.searchParams.get("dateField") || "exam_date";
     const from = request.nextUrl.searchParams.get("from") || "", to = request.nextUrl.searchParams.get("to") || "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
-    if ([examStatus, certStatus].some((value) => value && !["ON", "OFF", "UNSET"].includes(value))) return NextResponse.json({ error: "考试筛选条件无效" }, { status: 400 });
+    if ([examStatus, certStatus].some(raw => !validSelection(raw, value => ["ON", "OFF", "UNSET"].includes(value)))) return NextResponse.json({ error: "考试筛选条件无效" }, { status: 400 });
     if (!["exam_date", "cert_date"].includes(field) || ((from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to))) return NextResponse.json({ error: "考试日期范围无效" }, { status: 400 });
     if (examName) params.set("exam_name", examName);
     if (from || to) { params.set("field_date", field); if (from) params.set("start_date", from); if (to) params.set("end_date", to); }
@@ -81,7 +88,14 @@ export async function GET(request: NextRequest) {
     const like = (field: string, value: string) => { if (value) { conditions.push(`${field} LIKE ?`); values.push(`%${value.replace(/[\\%_]/g, "\\$&")}%`); } };
     like(kind === "exams" ? "d.exam_person_name" : "s.name", q);
     if (month && (kind === "salary" || kind === "insurance")) { conditions.push("d.date >= ? AND d.date < DATE_ADD(?, INTERVAL 1 MONTH)"); values.push(`${month}-01`, `${month}-01`); }
-    const statusFilter = (field: string, value: string) => { if (value === "UNSET") conditions.push(`(d.${field} IS NULL OR d.${field} = '')`); else if (value) { conditions.push(`d.${field} = ?`); values.push(value); } };
+    const statusFilter = (field: string, value: string) => {
+      if (!value) return;
+      const selected = [...new Set<string>(value.startsWith("[") ? JSON.parse(value) : [value])];
+      const actual = selected.filter(item => item !== "UNSET");
+      const choices = selected.includes("UNSET") ? [`d.${field} IS NULL`, `d.${field} = ''`] : [];
+      if (actual.length) { choices.push(actual.length === 1 ? `d.${field} = ?` : `d.${field} IN (${actual.map(() => "?").join(",")})`); values.push(...actual); }
+      conditions.push(choices.length === 1 ? choices[0] : `(${choices.join(" OR ")})`);
+    };
     if (kind === "insurance") { statusFilter("insure_status", status); statusFilter("insure_pay", insurePay); }
     if (kind === "certificates") {
       like("d.cert_name", params.get("search") || "");
