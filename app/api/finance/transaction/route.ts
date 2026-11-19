@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest) {
   const version = typeof body.updatedAt === "string" ? new Date(body.updatedAt) : null;
   let verifiedAt: Date | null | undefined;
   try { verifiedAt = financeDate(body.verifiedAt); } catch { return NextResponse.json({ error: "对账日期无效" }, { status: 400 }); }
-  if (!extra || typeof body.id !== "string" || !/^[a-f\d]{24}$/i.test(body.id) || amount === null || !version || Number.isNaN(version.getTime()) || (body.type !== undefined && (typeof body.type !== "string" || body.type.length > 80)) || typeof body.title !== "string" || body.title.length > 200 || !["未对账", "已对账", "未设置"].includes(body.status)) return NextResponse.json({ error: "请正确填写交易信息" }, { status: 400 });
+  if (!extra || typeof body.id !== "string" || !/^[a-f\d]{24}$/i.test(body.id) || amount === null || !version || Number.isNaN(version.getTime()) || (body.type !== undefined && (typeof body.type !== "string" || body.type.length > 80)) || typeof body.title !== "string" || body.title.length > 10000 || !["未对账", "已对账", "未设置"].includes(body.status)) return NextResponse.json({ error: "请正确填写交易信息" }, { status: 400 });
   try {
     const collection = (await getMongo()).db("junyang-finance").collection("transactions");
     const filter = { _id: new ObjectId(body.id), updatedAt: version, status: { $ne: "已对账" } };
