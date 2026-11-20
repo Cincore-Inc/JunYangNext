@@ -50,6 +50,28 @@ test('旧服务关闭时项目、财务和附件仍可使用', { timeout: 120000
     assert.equal((await queryProjects({ q: '筛选对照', won: '1' })).total, 1);
     assert.equal((await queryProjects({ q: '筛选对照', bidMethods: '抽选', from: '2026-10-01', to: '2026-10-31' })).total, 1);
     assert.equal((await queryProjects({ q: '筛选对照', won: '1', from: '2026-11-01', to: '2026-11-30', winnerExact: '历史中标公司' })).total, 1);
+    const summaryProject = (await queryProjects({ q: '筛选对照-中标' })).projects[0];
+    const financeDb = client.db('junyang-finance');
+    const projectRef = { value: summaryProject.id };
+    const receiptIds = await financeDb.collection('receipts').insertMany([
+      { project: projectRef, amount: 10600, amountWithoutTax: 10000, tax: 600, ticketStatus: '有效' },
+      { project: projectRef, amount: 21200, amountWithoutTax: 20000, tax: 1200, ticketStatus: '作废' },
+      { project: projectRef, amount: -1060, amountWithoutTax: -1000, tax: -60 },
+    ]);
+    const issuedId = await financeDb.collection('invoices').insertOne({ project: projectRef, amount: 50000, amountWithoutTax: 45000, tax: 5000 });
+    const withTotals = (await queryProjects({ q: '筛选对照-中标', won: '1' })).projects[0];
+    assert.deepEqual(withTotals.received, { count: 3, amount: 30740, amountWithoutTax: 29000 });
+    assert.deepEqual(withTotals.issued, { count: 1, amount: 50000, amountWithoutTax: 45000 });
+    const { projectInvoiceDifference } = await import('../lib/money.mjs');
+    assert.equal(projectInvoiceDifference(withTotals.issued.amount, withTotals.received.amountWithoutTax), 17000);
+    const receiptSummary = await fetch(`${base}/api/finance?${new URLSearchParams({ kind: 'receipts', projectId: summaryProject.id })}`, { headers: { cookie } });
+    assert.equal(receiptSummary.status, 200);
+    assert.equal((await receiptSummary.json()).summary.amountWithoutTax, withTotals.received.amountWithoutTax);
+    await financeDb.collection('receipts').deleteMany({ _id: { $in: Object.values(receiptIds.insertedIds) } });
+    await financeDb.collection('invoices').deleteOne({ _id: issuedId.insertedId });
+    const emptyTotals = (await queryProjects({ q: '筛选对照-投标中' })).projects[0];
+    assert.deepEqual(emptyTotals.received, { count: 0, amount: 0, amountWithoutTax: 0 });
+    assert.equal(projectInvoiceDifference(emptyTotals.issued.amount, emptyTotals.received.amountWithoutTax), 0);
     const winnerOptions = await fetch(`${base}/api/projects/options?${new URLSearchParams({ q: '历史中标', historical: '1' })}`, { headers: { cookie } });
     assert.equal(winnerOptions.status, 200); assert.ok((await winnerOptions.json()).items.some(item => item.value === 'legacy:历史中标公司'));
     const createdProject = await fetch(`${base}/api/projects`, { method: 'POST', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ name: '独立测试项目' }) });
