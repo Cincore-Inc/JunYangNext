@@ -393,8 +393,9 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
       { title: "对账状态", dataIndex: "status", width: 110, render: (value: string) => <StatusTag value={value} /> },
       { title: "操作", width: !can("finance_view") ? 88 : transactions ? 140 : 240, fixed: "right", render: (_, row) => <Space size={4} style={{ whiteSpace: "nowrap" }}><Button size="small" onClick={() => setSelected(row)}>详情</Button>{!transactions && can("finance_view") && <Button size="small" onClick={() => cloneInvoice(row)}>复制</Button>}{can("finance_view") && row.status === "已对账" && row.updatedAt && <Button size="small" onClick={() => { setNote(row.note); setNoteRow(row); }}>备注</Button>}{can("finance_view") && (!transactions || row.status !== "已对账") && row.updatedAt && Number.isSafeInteger(row.amount) && (transactions || (Number.isSafeInteger(row.amountWithoutTax) && Number.isSafeInteger(row.tax))) && <Button size="small" onClick={() => editFinance(row)}>编辑</Button>}</Space> },
     ] satisfies ColumnType<FinanceItem>[]).sort((a, b) => {
-      if (transactions) return 0;
-      const order = kind === "receipts"
+      const order = transactions
+        ? ["date", "project", "company", "type", "direction", "title", "accountName", "channel", "oppositeAccountName", "oppositeChannel", "note", "amount", "verifiedAt", "files", "todo", "status"]
+        : kind === "receipts"
         ? ["date", "number", "party", "title", "tax", "amountWithoutTax", "taxRate", "amount", "project", "company", "ticketStatus", "index", "files", "tags", "ticketClass", "person"]
         : ["date", "project", "company", "number", "ticketStatus", "index", "projectNumber", "party", "ticketClass", "amountWithoutTax", "tax", "taxRate", "amount", "files"];
       const rank = (field: unknown) => { const index = order.indexOf(String(field)); return index < 0 ? order.length : index; };
