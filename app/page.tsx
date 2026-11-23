@@ -360,7 +360,7 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
       if ((selected.field === "date" || selected.field === "amount") && selected.order) {
         resetLoading(); setSort(selected.field + (selected.order === "ascend" ? "Asc" : "Desc"));
       }
-    }} loading={loading} dataSource={data?.items || []} scroll={{ x: "max-content" }} summary={() => data && <Table.Summary><Table.Summary.Row><Table.Summary.Cell index={0} colSpan={transactions ? 17 : kind === "receipts" ? 27 : 23}><Space wrap size={24}><strong>筛选合计（{data.total} 条）</strong>{!transactions && <><span>不含税金额：<Money value={data.summary.amountWithoutTax} /></span><span>税额：<Money value={data.summary.tax} /></span></>}<span>{transactions ? "交易金额" : "含税金额"}：<Money value={data.summary.amount} /></span></Space></Table.Summary.Cell></Table.Summary.Row></Table.Summary>} pagination={{ current: page, pageSize, total: data?.total || 0, showSizeChanger: true, pageSizeOptions: [2, 25, 50, 100, 200, 300, 400], showTotal: (total) => `共 ${total} 条`, onChange: (value, size) => { setLoading(true); setError(""); setPage(size === pageSize ? value : 1); setPageSize(size); } }} columns={([
+    }} loading={loading} dataSource={data?.items || []} scroll={{ x: "max-content" }} summary={() => data && <Table.Summary><Table.Summary.Row><Table.Summary.Cell index={0} colSpan={transactions ? 17 : kind === "receipts" ? 27 : 22}><Space wrap size={24}><strong>筛选合计（{data.total} 条）</strong>{!transactions && <><span>不含税金额：<Money value={data.summary.amountWithoutTax} /></span><span>税额：<Money value={data.summary.tax} /></span></>}<span>{transactions ? "交易金额" : "含税金额"}：<Money value={data.summary.amount} /></span></Space></Table.Summary.Cell></Table.Summary.Row></Table.Summary>} pagination={{ current: page, pageSize, total: data?.total || 0, showSizeChanger: true, pageSizeOptions: [2, 25, 50, 100, 200, 300, 400], showTotal: (total) => `共 ${total} 条`, onChange: (value, size) => { setLoading(true); setError(""); setPage(size === pageSize ? value : 1); setPageSize(size); } }} columns={([
       { title: "日期", dataIndex: "date", sorter: true, sortDirections: ["descend", "ascend", "descend"], sortOrder: sort.startsWith("date") ? (sort.endsWith("Asc") ? "ascend" : "descend") : null, width: 110, render: date },
       { title: "项目", dataIndex: "project", width: 250 },
       { title: "公司", dataIndex: "company", width: 150 },
@@ -373,7 +373,7 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
       ] : [
         { title: "发票序号", dataIndex: "index", width: 110 },
         { title: "工程编号", dataIndex: "projectNumber", width: 110 },
-        { title: "标签", dataIndex: "tags", width: 140, render: (value: string) => value || "—" },
+        ...(kind === "receipts" ? [{ title: "标签", dataIndex: "tags", width: 140, render: (value: string) => value || "—" }] : []),
         ...(kind === "receipts" ? [{ title: "名目", dataIndex: "title", width: 160, render: (value: string) => value || "—" }] : []),
         { title: kind === "receipts" ? "开票方" : "购票方", dataIndex: "party", width: 180 },
         { title: "发票种类", dataIndex: "ticketClass", width: 120 },
@@ -393,8 +393,10 @@ function Finance({ transactions, initialKind, projectId, projectName }: { transa
       { title: "对账状态", dataIndex: "status", width: 110, render: (value: string) => <StatusTag value={value} /> },
       { title: "操作", width: !can("finance_view") ? 88 : transactions ? 140 : 240, fixed: "right", render: (_, row) => <Space size={4} style={{ whiteSpace: "nowrap" }}><Button size="small" onClick={() => setSelected(row)}>详情</Button>{!transactions && can("finance_view") && <Button size="small" onClick={() => cloneInvoice(row)}>复制</Button>}{can("finance_view") && row.status === "已对账" && row.updatedAt && <Button size="small" onClick={() => { setNote(row.note); setNoteRow(row); }}>备注</Button>}{can("finance_view") && (!transactions || row.status !== "已对账") && row.updatedAt && Number.isSafeInteger(row.amount) && (transactions || (Number.isSafeInteger(row.amountWithoutTax) && Number.isSafeInteger(row.tax))) && <Button size="small" onClick={() => editFinance(row)}>编辑</Button>}</Space> },
     ] satisfies ColumnType<FinanceItem>[]).sort((a, b) => {
-      if (transactions || kind !== "receipts") return 0;
-      const order = ["date", "number", "party", "title", "tax", "amountWithoutTax", "person"];
+      if (transactions) return 0;
+      const order = kind === "receipts"
+        ? ["date", "number", "party", "title", "tax", "amountWithoutTax", "taxRate", "amount", "project", "company", "ticketStatus", "index", "files", "tags", "ticketClass", "person"]
+        : ["date", "project", "company", "number", "ticketStatus", "index", "projectNumber", "party", "ticketClass", "amountWithoutTax", "tax", "taxRate", "amount", "files"];
       const rank = (field: unknown) => { const index = order.indexOf(String(field)); return index < 0 ? order.length : index; };
       return rank(a.dataIndex) - rank(b.dataIndex);
     })} />
